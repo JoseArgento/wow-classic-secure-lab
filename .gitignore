@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────
+#  Secretos y credenciales — NUNCA al repo
+# ─────────────────────────────────────────────
+*.pem
+*.key
+*.crt
+.env
+**/db.env
+
+# El compose.yaml REAL tiene passwords/IP → subí solo el .example
+compose.yaml
+!compose.yaml.example
+
+# Las configs REALES pueden tener datos sensibles → subí solo los .example
+config/*.conf
+!config/*.conf.example
+
+# ─────────────────────────────────────────────
+#  Datos del cliente — copyright + pesan GB
+# ─────────────────────────────────────────────
+storage/
+client-data/
+extracted-data/
+*.MPQ
+*.mpq
+
+# ─────────────────────────────────────────────
+#  Backups de base de datos
+# ─────────────────────────────────────────────
+*.sql.gz
+*.dump
+backups/
+
+# ─────────────────────────────────────────────
+#  Ruido del sistema / editores
+# ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*~
+.idea/
+.vscode/

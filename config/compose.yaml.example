@@ -1,0 +1,108 @@
+# ===================================================================
+#  compose.yaml.example  —  SANITIZED
+# ===================================================================
+#  Versión saneada del compose.yaml real (basado en
+#  mserajnik/vmangos-deploy), con placeholders en lugar de secretos.
+#
+#  Refleja la estructura y los settings relevantes para seguridad y
+#  conectividad. Reemplazá cada <PLACEHOLDER> con tus valores reales
+#  en el archivo local (que queda fuera del repo por el .gitignore).
+#
+#  ⚠️ El password de la DB debe coincidir con el de las cadenas de
+#     conexión en config/mangosd.conf y config/realmd.conf.
+#  ⚠️ No usar caracteres especiales (#, ;, ", ', espacios) en el
+#     password: rompen el parser de las cadenas de conexión.
+# ===================================================================
+
+services:
+  database:
+    image: ghcr.io/mserajnik/vmangos-database
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'vmangos-healthcheck']
+      interval: 1m
+      timeout: 3s
+      retries: 5
+      start_period: 24h   # Intencional: mantiene el contenedor en `starting` durante la creación inicial de la DB. NO reducir sin necesidad.
+    volumes:
+      - vmangos-database:/var/lib/mysql
+      - ./storage/database/custom-sql:/sql/custom:ro
+    environment:
+      - TZ=America/Argentina/Cordoba
+      # --- Credenciales (NO se pueden cambiar tras el primer arranque) ---
+      - MARIADB_USER=mangos
+      - MARIADB_PASSWORD=<CHANGEME_DB_PASSWORD>
+      - MARIADB_ROOT_PASSWORD=<CHANGEME_ROOT_PASSWORD>
+      # --- Configuración del realm ---
+      - VMANGOS_REALMLIST_NAME=<REALM_NAME>
+      - VMANGOS_REALMLIST_ADDRESS=<YOUR_ELASTIC_IP>   # IP/dominio público: permite conexiones externas
+      - VMANGOS_REALMLIST_PORT=8085
+      - VMANGOS_REALMLIST_ICON=1                       # 0=Normal, 1=PvP, 6=RP, 8=RP PvP
+      - VMANGOS_REALMLIST_TIMEZONE=4                   # 4=Latin America, 8=English, 11=Spanish
+      - VMANGOS_REALMLIST_ALLOWED_SECURITY_LEVEL=0     # 0=jugadores normales
+      - VMANGOS_ENABLE_AUTOMATIC_WORLD_DB_CORRECTIONS=1
+      - VMANGOS_HALT_ON_MIGRATION_EDITS=1
+      - VMANGOS_PROCESS_CUSTOM_SQL=1
+    # 🔒 SEGURIDAD: el servicio `database` NO declara `ports:`.
+    #    MariaDB queda solo en la red interna de Docker, sin exposición
+    #    a internet. Para administración remota, usar un túnel SSH.
+
+  realmd:
+    image: ghcr.io/mserajnik/vmangos-server:5875   # build 5875 = cliente 1.12.1
+    user: 1000:1000                                 # UID/GID por defecto en Ubuntu
+    command: realmd
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'nc', '-z', 'localhost', '3724']
+      interval: 1m
+      timeout: 3s
+      retries: 5
+      start_period: 5m
+    ports:
+      - 3724:3724   # Login — necesario para que entren los jugadores
+    volumes:
+      - ./config/realmd.conf:/opt/vmangos/config/realmd.conf:ro
+      - ./storage/realmd/logs:/opt/vmangos/storage/logs
+    environment:
+      - TZ=America/Argentina/Cordoba
+
+  mangosd:
+    image: ghcr.io/mserajnik/vmangos-server:5875
+    user: 1000:1000
+    command: mangosd
+    tty: true
+    stdin_open: true
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 2m
+    healthcheck:
+      test: ['CMD', 'nc', '-z', 'localhost', '8085']
+      interval: 1m
+      timeout: 3s
+      retries: 5
+      start_period: 5m
+    ports:
+      - 8085:8085   # Mundo — necesario para que entren los jugadores
+    volumes:
+      - ./config/mangosd.conf:/opt/vmangos/config/mangosd.conf:ro
+      - ./storage/mangosd/extracted-data:/opt/vmangos/storage/data:ro
+      - ./storage/mangosd/logs:/opt/vmangos/storage/logs
+      - ./storage/mangosd/honor:/opt/vmangos/storage/honor
+    environment:
+      - TZ=America/Argentina/Cordoba
+
+  # --- Servicios opcionales (dejar comentados salvo necesidad) ---
+  #
+  # database-backup: backups diarios de la DB. Recomendado activarlo una
+  #   vez que el server tiene datos. Ver compose.yaml.example de upstream.
+  #
+  # phpmyadmin: administración web de la DB. ⚠️ NUNCA exponerlo a la WAN;
+  #   accederlo solo por túnel SSH. Exponerlo = base de datos comprometida.
+
+volumes:
+  vmangos-database:
