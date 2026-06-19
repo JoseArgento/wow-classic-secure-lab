@@ -145,7 +145,7 @@ before execution **and** before distributing it to other players. Full report:
 
 | `WoW.exe` (0/71) | `Repair.exe` (0/71) | `BackgroundDownloader.exe` (0/71) |
 |---|---|---|
-| ![VT WoW.exe](evidence/vt-wow-exe.png) | ![VT Repair.exe](evidence/vt-repair.png) | ![VT BackgroundDownloader](evidence/vt-backgrounddownloader.png) |
+| ![VT WoW.exe](evidence/vt-wow-exe.png.png) | ![VT Repair.exe](evidence/vt-repair.png.png) | ![VT BackgroundDownloader](evidence/vt-backgrounddownloader.png) |
 
 **The interesting case — `Scan.dll` (2/70):** heuristic/behavioral detections on a
 UPX-packed component. Escalated to dynamic analysis (no C2 traffic, no
