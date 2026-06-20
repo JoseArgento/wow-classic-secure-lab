@@ -178,8 +178,8 @@ Tratar un proyecto hobby como un sistema real dejó lecciones que van mucho más
 
 - Activar el anticheat **Warden** del lado servidor y estudiar la detección de integridad del cliente desde adentro.
 - Capturar y analizar el protocolo de autenticación con **Wireshark**.
-- Reenviar los logs de SSH / servicios a un **SIEM** básico para correlación y alertas.
 - Agregar auditoría automatizada de configuración (ej. un script tipo checklist CIS).
+- ✅ **Centralización de logs y detección** — ver [`docs/blue-team-logging.es.md`](./docs/blue-team-logging.es.md): pipeline Loki + Grafana + Promtail con arquitectura segura fuera del host, análisis de defensa en profundidad y validación de detección en vivo.
 
 ---
 
