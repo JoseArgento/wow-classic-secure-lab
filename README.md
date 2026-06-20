@@ -145,7 +145,7 @@ before execution **and** before distributing it to other players. Full report:
 
 | `WoW.exe` (0/71) | `Repair.exe` (0/71) | `BackgroundDownloader.exe` (0/71) |
 |---|---|---|
-| ![VT WoW.exe](evidence/vt-wow-exe.png) | ![VT Repair.exe](evidence/vt-repair.png) | ![VT BackgroundDownloader](evidence/vt-backgrounddownloader.png) |
+| ![VT WoW.exe](evidence/vt-wow-exe.png.png) | ![VT Repair.exe](evidence/vt-repair.png.png) | ![VT BackgroundDownloader](evidence/vt-backgrounddownloader.png) |
 
 **The interesting case — `Scan.dll` (2/70):** heuristic/behavioral detections on a
 UPX-packed component. Escalated to dynamic analysis (no C2 traffic, no
@@ -176,8 +176,8 @@ Treating a hobby project as a real system surfaced lessons that go well beyond g
 
 - Enable server-side **Warden** anticheat and study client-integrity detection from the inside.
 - Capture and analyze the authentication protocol with **Wireshark**.
-- Forward SSH / service logs to a basic **SIEM** for correlation and alerting.
 - Add automated configuration auditing (e.g., a CIS-style checklist script).
+- ✅ **Centralized logging & detection** — see [`docs/blue-team-logging.md`](./docs/blue-team-logging.md): a Loki + Grafana + Promtail pipeline with secure off-host architecture, defense-in-depth analysis and live detection validation.
 
 ---
 
