@@ -1,0 +1,299 @@
+{
+  "uid": "auth-dashboard-bt",
+  "title": "Auth Dashboard",
+  "tags": [
+    "blue-team",
+    "ssh",
+    "provisioned"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Intentos de autenticación fallidos",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum(count_over_time({job=\"systemd-journal\"} |~ `(?i)Failed password|Invalid user` [$__range]))",
+          "refId": "A",
+          "queryType": "instant"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Fallidos en el tiempo",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 16,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum(count_over_time({job=\"systemd-journal\"} |~ `(?i)Failed password|Invalid user` [$__auto]))",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "Intentos fallidos"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "points",
+            "pointSize": 6
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "bargauge",
+      "title": "Eventos por servicio",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum by (unit) (count_over_time({job=\"systemd-journal\"} [$__range]))",
+          "refId": "A",
+          "queryType": "instant",
+          "legendFormat": "{{unit}}"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "bargauge",
+      "title": "Top IPs atacantes",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 6,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "topk(10, sum by (ip) (count_over_time({job=\"systemd-journal\"} |~ `(?i)Failed password|Invalid user` | regexp `(?P<ip>\\d+\\.\\d+\\.\\d+\\.\\d+)` [$__range])))",
+          "refId": "A",
+          "queryType": "instant",
+          "legendFormat": "{{ip}}"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Logins SSH exitosos",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 6,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "{job=\"systemd-journal\"} |= `Accepted`",
+          "refId": "A",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Actividad SSH reciente",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "{job=\"systemd-journal\", unit=\"ssh.service\"}",
+          "refId": "A",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 7,
+      "type": "logs",
+      "title": "fail2ban en acción",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "{job=\"systemd-journal\", unit=\"fail2ban.service\"}",
+          "refId": "A",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    }
+  ]
+}

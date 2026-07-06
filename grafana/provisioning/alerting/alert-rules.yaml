@@ -1,0 +1,307 @@
+# =============================================================
+# ARCHIVO GENERADO — NO EDITAR A MANO
+# Fuente: rules/linux/ + deploy/rules-config.yaml
+# Regenerar con: python3 deploy/generate_alerts.py
+# =============================================================
+apiVersion: 1
+groups:
+- orgId: 1
+  name: sigma-generated
+  folder: Security
+  interval: 1m
+  rules:
+  - uid: sigma-a15745b13e8e4a
+    title: SSH Authentication Failure
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="systemd-journal"} |~ `(?i)Failed\ password\ for|Invalid\ user` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 3
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 1m
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: medium
+      summary: 'SSH Authentication Failure: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+  - uid: sigma-89e2940a4e5f49
+    title: SSH Preauth Disconnect
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="systemd-journal"} |~ `(?i)Disconnected\ from\ invalid\ user|Disconnected\ from\ authenticating\ user` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 3
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 1m
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: low
+      summary: 'SSH Preauth Disconnect: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+  - uid: sigma-b394acc16ac547
+    title: VMaNGOS Wrong Password
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="vmangos"} |~ `(?i)tried\ to\ login\ with\ wrong\ password` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 4
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 1m
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: medium
+      summary: 'VMaNGOS Wrong Password: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+  - uid: sigma-2105f4821ff946
+    title: VMaNGOS IP Lockout
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="vmangos"} |~ `(?i)is\ temporarily\ locked\ after` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: high
+      summary: 'VMaNGOS IP Lockout: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+  - uid: sigma-d0339e6d77084b
+    title: VMaNGOS Protocol Scan
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="vmangos"} |~ `(?i)got\ unknown\ packet\ cmd` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 3
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 1m
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: low
+      summary: 'VMaNGOS Protocol Scan: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
