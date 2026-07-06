@@ -6,12 +6,16 @@
 > cliente-servidor multi-tier, desplegada y endurecida en AWS EC2. La carga de
 > trabajo resulta ser un servidor de juego privado (WoW Classic 1.12.1 / VMaNGOS),
 > pero el foco del proyecto es la **seguridad en la nube, el hardening de Linux, la
-> orquestación de contenedores y el análisis de superficie de ataque**.
+> orquestación de contenedores, el análisis de superficie de ataque y, coronándolo
+> todo, la ingeniería de detección y respuesta automatizada**
+> (ver [Detección y Respuesta](#-detección-y-respuesta--el-pipeline-soc)).
 
 ![Status](https://img.shields.io/badge/status-active-success)
 ![AWS](https://img.shields.io/badge/AWS-EC2-orange)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
 ![Linux](https://img.shields.io/badge/OS-Ubuntu-lightgrey)
+![SIEM](https://img.shields.io/badge/SIEM-Grafana%20%2B%20Loki-yellow)
+![SOAR](https://img.shields.io/badge/SOAR-n8n-red)
 
 ![Servidor en vivo — personaje en el mundo](evidence/ingame-stormwind.png)
 *El resultado final: un servidor desplegado, endurecido y jugable. Cliente conectado al realm en vivo.*
@@ -57,8 +61,12 @@ flowchart LR
 
 ## 🧰 Stack Tecnológico
 
-`AWS EC2` · `Ubuntu Server 24.04 LTS` · `Docker` · `Docker Compose` ·
-`MariaDB` · `ufw` · `fail2ban` · `OpenSSH`
+**Infraestructura:** `AWS EC2` · `Ubuntu Server 24.04 LTS` · `Docker` ·
+`Docker Compose` · `MariaDB` · `ufw` · `fail2ban` · `OpenSSH`
+
+**Detección y Respuesta:** `Promtail` · `Loki` · `Grafana` (aprovisionado como código) ·
+`Sigma / pySigma` · `pytest` · `GitHub Actions` · `n8n` · `PostgreSQL` ·
+`Groq LLM` · `AbuseIPDB` · `VirusTotal` · `RDAP` · `Telegram Bot API`
 
 ---
 
@@ -128,8 +136,7 @@ El núcleo de este proyecto. Controles aplicados, mapeados a su propósito:
 | Cliente de juego malicioso (cadena de suministro) | Análisis previo a la ejecución: versión, hashing, VirusTotal, análisis de comportamiento, verificación cruzada de integridad |
 | Movimiento lateral | Contenedores aislados; paquetes del host minimizados |
 
-> `[TODO: tras unos días online, agregar captura de 'fail2ban-client status sshd'
-> con IPs reales baneadas — prueba del control atajando ataques reales.]`
+![fail2ban banned](evidence/fail2ban-banned.png)
 
 ---
 
@@ -162,6 +169,44 @@ justificado mediante verificación cruzada de hashes.
 
 ---
 
+## 🚨 Detección y Respuesta — el pipeline SOC
+
+Lo que arrancó como una "posible extensión" creció hasta convertirse en un stack
+completo de detección y respuesta, con el servidor endurecido como su carga de
+trabajo productiva realista — monitoreado, alertado, triado y defendido de punta a punta:
+
+![Arquitectura completa del lab — telemetría, detección y respuesta](docs/blue-team-lab-v2.png)
+
+La cadena, etapa por etapa:
+
+1. **Telemetría** — Promtail envía los eventos de journald (`sshd`) y el `Realmd.log`
+   del servidor de juego fuera del host, a través de un túnel SSH inverso, hacia un
+   stack Loki + Grafana. No se abrió ningún puerto entrante en EC2, y los logs
+   sobreviven aunque el host caiga comprometido.
+   Diseño y validación: [`docs/blue-team-logging.es.md`](./docs/blue-team-logging.es.md).
+2. **Detection-as-Code** — 5 reglas Sigma (fuerza bruta SSH, escaneo pre-auth y tres
+   detecciones sobre el protocolo de juego de VMaNGOS) versionadas en Git, con tests
+   de regresión vía una suite parametrizada de `pytest` contra logs de muestra, y
+   compiladas a LogQL en CI. Las reglas de alerta de Grafana se **generan** desde las
+   fuentes Sigma con UIDs determinísticos — el repo de reglas es la única fuente de verdad.
+   Repo: [`detection-rules-ci`](https://github.com/JoseArgento/detection-rules-ci).
+3. **Aprovisionamiento como código** — datasources, contact points, reglas de alerta
+   y dashboards viven como YAML en [`grafana/`](./grafana/). Reconstruir todo el
+   stack de observabilidad tras un desastre está a un `git clone` de distancia.
+4. **Triage SOAR** — las alertas disparadas llegan a un pipeline de n8n: enriquecimiento
+   de IOCs (AbuseIPDB, RDAP, VirusTotal), un analista LLM con una regla explícita de
+   triangulación (*una reputación limpia jamás puede anular comportamiento hostil
+   observado*), y un cache de veredictos en Postgres para no re-analizar IOCs conocidos.
+   Documentación completa: [`docs/soar-pipeline.es.md`](./docs/soar-pipeline.es.md).
+5. **Respuesta con humano en el loop** — los veredictos llegan a Telegram con botones
+   de aprobar/descartar. Los bans aprobados se ejecutan por un canal SSH restringido
+   (usuario dedicado, validación de input, `sudoers` acotado) hacia una jail dedicada
+   de `fail2ban` que cubre **todos los puertos** — el mismo mecanismo responde tanto
+   si el ataque vino por SSH como por el protocolo del juego. Ante timeout, el
+   default es siempre *no banear*.
+
+---
+
 ## 💡 Lecciones Aprendidas
 
 Tratar un proyecto hobby como un sistema real dejó lecciones que van mucho más allá del juego:
@@ -170,6 +215,7 @@ Tratar un proyecto hobby como un sistema real dejó lecciones que van mucho más
 - **Verificar el estado efectivo, no el archivo de config.** Chequear `sshd -T` (la config consolidada en ejecución) en vez de confiar en un solo archivo es la diferencia entre *asumir* que un control está activo y *comprobarlo*.
 - **Asignar el trabajo al recurso correcto.** Extraer los datos del cliente en local en lugar de en la instancia cloud evitó quemar créditos de CPU — una decisión de arquitectura chica con impacto real en el costo.
 - **No confiar por defecto — pero tampoco rechazar por corazonada.** Las detecciones de antivirus exigieron criterio: distinguir un falso positivo heurístico de una amenaza real mediante análisis dinámico y verificación cruzada de hashes, en vez de reaccionar a una etiqueta alarmante.
+- **Si no está en Git, no existe.** Una recreación de contenedor de rutina borró toda la configuración de Grafana hecha por UI — datasources, reglas de alerta, dashboards, todo. Ahora todo está aprovisionado como código ([`grafana/`](./grafana/)), y el incidente se volvió el mejor argumento a favor de la práctica.
 - **Esto es QA, aplicado a la seguridad.** Verificar antes de confiar, mapear la superficie antes de exponerla, y comprobar que los controles funcionan es la misma mentalidad que traigo de la automatización de testing — ahora apuntada a la infraestructura.
 
 ---
@@ -179,7 +225,10 @@ Tratar un proyecto hobby como un sistema real dejó lecciones que van mucho más
 - Activar el anticheat **Warden** del lado servidor y estudiar la detección de integridad del cliente desde adentro.
 - Capturar y analizar el protocolo de autenticación con **Wireshark**.
 - Agregar auditoría automatizada de configuración (ej. un script tipo checklist CIS).
-- ✅ **Centralización de logs y detección** — ver [`docs/blue-team-logging.es.md`](./docs/blue-team-logging.es.md): pipeline Loki + Grafana + Promtail con arquitectura segura fuera del host, análisis de defensa en profundidad y validación de detección en vivo.
+- Simular una cadena de ataque completa (escaneo de protocolo → fuerza bruta → lockout) y publicar el triage resultante de Telegram como caso de estudio.
+
+> ✅ *Centralización de logs y detección* vivía en esta lista. Creció hasta ser el
+> [pipeline de Detección y Respuesta](#-detección-y-respuesta--el-pipeline-soc) de arriba.
 
 ---
 
@@ -192,7 +241,7 @@ y validación** desde QA hacia la infraestructura y el trabajo de blue team —
 verificar el software no confiable antes de confiar en él, mapear la superficie de
 ataque antes de exponerla, y comprobar que los controles funcionan en lugar de asumirlo.
 
-🔗 [ LinkedIn](https://www.linkedin.com/in/jos%C3%A9-angel-argento-victoria/) · [🔐 pentest-lab](https://github.com/JoseArgento/pentest-lab)
+🔗 [ LinkedIn](https://www.linkedin.com/in/jos%C3%A9-angel-argento-victoria/) · [🔐 pentest-lab](https://github.com/JoseArgento/pentest-lab) · [🧪 detection-rules-ci](https://github.com/JoseArgento/detection-rules-ci)
 
 ---
 
