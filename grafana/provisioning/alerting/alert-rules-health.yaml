@@ -1,0 +1,56 @@
+# Reglas de SALUD del lab, escritas a mano.
+# Van separadas de alert-rules.yaml porque ese archivo lo genera
+# generate_alerts.py desde las reglas Sigma y se pisa al regenerar.
+apiVersion: 1
+groups:
+- orgId: 1
+  name: salud-del-lab
+  folder: Security
+  interval: 1m
+  rules:
+  # Dead man's switch: el i3 escribe "lab-heartbeat i3 alive" cada minuto
+  # (/etc/cron.d/lab-heartbeat). Si no llega ninguno en 5 min, y eso se
+  # sostiene 2 min más, algún eslabón se cortó: Alloy, el túnel, el i3,
+  # o alguien apagó los logs (MITRE ATT&CK v19: T1685 - Disable or Modify
+  # Tools, táctica Defense Impairment; antes de v19 era T1562.001).
+  # Límite conocido: si la VM de observabilidad está apagada, no alerta nada.
+  - uid: deadman-i3-heartbeat
+    title: Dead man's switch - i3 sin latido
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        # absent_over_time devuelve 1 si NO hubo latidos en la ventana, y
+        # nada si los hubo (-> No Data -> OK).
+        expr: absent_over_time({job="systemd-journal", host="i3"} |= "lab-heartbeat" [5m])
+        instant: true
+        queryType: instant
+        refId: A
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+        refId: C
+    noDataState: OK
+    execErrState: Alerting
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "El i3 dejó de enviar latidos hace más de 5 minutos."
+      description: "Revisar en orden: i3 prendido -> Alloy (docker compose ps en ~/alloy) -> túnel (systemctl status loki-tunnel en la VM) -> Loki."
+    isPaused: false
+    notification_settings:
+      receiver: telegram-salud

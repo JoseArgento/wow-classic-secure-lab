@@ -1,0 +1,30 @@
+# /etc/systemd/system/loki-tunnel.service - en la VM "observabilidad".
+#
+# Túnel SSH inverso: abre 127.0.0.1:3100 EN EL i3 y lo lleva al Loki de
+# esta VM. Alloy (en el i3) empuja a esa boca. La conexión sale de la VM:
+# el i3 no necesita poder iniciar conexiones hacia la VM.
+#
+# En el i3, la clave de este túnel está restringida en
+# ~lokitunnel/.ssh/authorized_keys a abrir SOLO ese puerto:
+#   restrict,port-forwarding,permitlisten="127.0.0.1:3100" ssh-ed25519 ...
+
+[Unit]
+Description=Tunel SSH inverso: Alloy del i3 -> Loki de esta VM
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=blue-team-an
+ExecStart=/usr/bin/ssh -N -T \
+  -i /home/blue-team-an/.ssh/loki_tunnel \
+  -o BatchMode=yes \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -R 127.0.0.1:3100:127.0.0.1:3100 \
+  lokitunnel@192.168.1.66
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

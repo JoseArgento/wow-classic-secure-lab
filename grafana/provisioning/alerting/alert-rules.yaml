@@ -1,6 +1,6 @@
 # =============================================================
-# ARCHIVO GENERADO — NO EDITAR A MANO
-# Fuente: rules/linux/ + deploy/rules-config.yaml
+# ARCHIVO GENERADO - NO EDITAR A MANO
+# Fuente: rules/ + deploy/rules-config.yaml
 # Regenerar con: python3 deploy/generate_alerts.py
 # =============================================================
 apiVersion: 1
@@ -69,6 +69,10 @@ groups:
     isPaused: false
     notification_settings:
       receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
   - uid: sigma-89e2940a4e5f49
     title: SSH Preauth Disconnect
     condition: C
@@ -128,6 +132,197 @@ groups:
     isPaused: false
     notification_settings:
       receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
+  - uid: sigma-ff3aa76d69ef44
+    title: Potential OpenSSH Daemon Exploitation Attempt - Client Crash Penalty
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="systemd-journal"} |~ `(?i)penalty:\ caused\ crash` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: high
+      summary: 'Potential OpenSSH Daemon Exploitation Attempt - Client Crash Penalty:
+        actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
+  - uid: sigma-e57d9652caa54b
+    title: Linux Security Service Stopped
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (host) (
+            count_over_time(
+              {job="systemd-journal"} |~ `(?i)Stopped\ fail2ban\.service|Stopped\ ssh\.service|Stopped\ ufw\.service` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      severity: medium
+      summary: Linux Security Service Stopped en {{ $labels.host }}
+      description: systemd registro la detencion de un servicio de defensa del host
+        (fail2ban, ssh o ufw). Un atacante con privilegios suele apagar las defensas
+        antes de actuar. Complementa al dead man's switch, que cubre la caida del
+        agente de logs. (attack.t1685)
+    isPaused: false
+    notification_settings:
+      receiver: telegram-alertas
+  - uid: sigma-791b1e63d71e45
+    title: Linux Local Account Created
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (host) (
+            count_over_time(
+              {job="systemd-journal"} |~ `(?i)new\ user:\ name=` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      severity: medium
+      summary: Linux Local Account Created en {{ $labels.host }}
+      description: useradd registro la creacion de una cuenta local. Crear una cuenta
+        propia es una tecnica clasica de persistencia despues de comprometer un host.
+        (attack.t1136.001)
+    isPaused: false
+    notification_settings:
+      receiver: telegram-alertas
   - uid: sigma-b394acc16ac547
     title: VMaNGOS Wrong Password
     condition: C
@@ -187,6 +382,10 @@ groups:
     isPaused: false
     notification_settings:
       receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
   - uid: sigma-2105f4821ff946
     title: VMaNGOS IP Lockout
     condition: C
@@ -246,6 +445,10 @@ groups:
     isPaused: false
     notification_settings:
       receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
   - uid: sigma-d0339e6d77084b
     title: VMaNGOS Protocol Scan
     condition: C
@@ -305,3 +508,7 @@ groups:
     isPaused: false
     notification_settings:
       receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip

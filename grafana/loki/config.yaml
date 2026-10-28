@@ -1,0 +1,53 @@
+# Configuración de Loki, versionada.
+#
+# Basada en /etc/loki/local-config.yaml de la imagen grafana/loki:3.0.0, que
+# es la que corría en la VM Kali sin estar en el repo. Cambios respecto de esa:
+#   - analytics desactivado (no enviar estadísticas a Grafana Labs)
+#   - retención de 365 días vía compactor
+#
+# NO TOCAR schema_config: los datos restaurados se escribieron con este
+# esquema. Si se cambia, Loki no reconoce el histórico.
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# Retención: el compactor borra lo que supere retention_period.
+# 365 días cubre el histórico de tráfico real (desde jun 2026) hasta
+# pasada la tesis. Con el volumen de logs del lab, entra holgado en 40 GB.
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
+
+limits_config:
+  retention_period: 8760h
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+analytics:
+  reporting_enabled: false

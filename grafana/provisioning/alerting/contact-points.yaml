@@ -1,10 +1,55 @@
 apiVersion: 1
 contactPoints:
+  # Alertas de seguridad -> SOAR (enriquecimiento, LLM, aprobación humana).
   - orgId: 1
-    name: n8n                 
+    name: n8n
     receivers:
       - uid: n8n-webhook
         type: webhook
         settings:
           url: http://192.168.1.54:5678/webhook/grafana-alert
           httpMethod: POST
+
+  # Alertas de salud del lab -> Telegram DIRECTO, sin pasar por n8n:
+  # si el que se cae es el SOAR, la alerta que avisa no puede depender de él.
+  # El token (secreto) viene del .env: Grafana interpola variables de
+  # entorno en el provisioning. El chat id va escrito a mano a propósito:
+  # Grafana re-interpreta el TIPO del valor interpolado, así que un id
+  # numérico pasado por variable termina como número, aunque esté entre
+  # comillas, y Grafana no arranca ("cannot unmarshal number into
+  # Config.chatid of type string"). El chat id no es secreto: sin el
+  # token del bot no sirve para nada.
+  - orgId: 1
+    name: telegram-salud
+    receivers:
+      - uid: telegram-salud
+        type: telegram
+        settings:
+          bottoken: "$TELEGRAM_BOT_TOKEN"
+          chatid: "8723523810"
+          parse_mode: None
+          message: |
+            {{ if eq .Status "firing" }}🚨 LAB SIN LATIDO
+            {{ range .Alerts }}{{ .Annotations.summary }}
+            {{ .Annotations.description }}
+            {{ end }}{{ else }}✅ LATIDO RECUPERADO
+            El i3 volvió a enviar latidos: la telemetría está de nuevo en línea.{{ end }}
+
+  # Alertas de integridad del host SIN IP (servicio de seguridad detenido,
+  # cuenta creada...): no hay nada que banear, hay que investigar. Van
+  # directo a Telegram con un mensaje genérico armado desde las anotaciones
+  # que escribe generate_alerts.py (severity, summary, description).
+  - orgId: 1
+    name: telegram-alertas
+    receivers:
+      - uid: telegram-alertas
+        type: telegram
+        settings:
+          bottoken: "$TELEGRAM_BOT_TOKEN"
+          chatid: "8723523810"
+          parse_mode: None
+          message: |
+            {{ range .Alerts }}{{ if eq .Status "firing" }}🚨 [{{ .Annotations.severity }}] {{ .Labels.alertname }}
+            {{ .Annotations.summary }}
+            {{ .Annotations.description }}{{ else }}✅ RESUELTO: {{ .Labels.alertname }}{{ end }}
+            {{ end }}

@@ -1,23 +1,52 @@
+# Stack de observabilidad: Loki (logs) + Grafana (alertas y dashboards).
+# Corre en la VM "observabilidad" (ver infra/observabilidad/).
+#
+# `name:` fija el prefijo de los volúmenes (observabilidad_loki-data, ...)
+# para que los comandos de backup/restore no dependan del nombre de la carpeta.
+name: observabilidad
+
 services:
   loki:
+    # Misma versión que escribió los datos restaurados desde la VM Kali.
+    # Actualizar como cambio aparte, después de verificar el restore.
     image: grafana/loki:3.0.0
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/config.yaml
     ports:
+      # Solo localhost: Docker se saltea ufw para puertos publicados.
+      # El i3 llega por el túnel SSH inverso.
       - "127.0.0.1:3100:3100"
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      # Antes no había volumen: chunks, índices y WAL vivían en la capa de
+      # escritura del container y se perdían con cualquier `compose down`.
+      - loki-data:/loki
     restart: unless-stopped
+    # Al apagar (o en un shutdown del host), Loki vacía a disco lo que tiene
+    # en memoria. Los 10 s por defecto de Docker pueden no alcanzar.
+    stop_grace_period: 1m
 
   grafana:
-    image: grafana/grafana:latest
+    # Versión fijada (antes :latest). 13.0.2 es la que corría en la Kali
+    # con estos dashboards y alert rules.
+    image: grafana/grafana:13.0.2
     ports:
+      # Acceso: ssh -L 3000:localhost:3000 <usuario>@<ip-de-la-vm>
       - "127.0.0.1:3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?Falta GF_ADMIN_PASSWORD en .env (ver .env.example)}
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      # Para el contact point telegram-salud (alertas de salud directas).
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:?Falta TELEGRAM_BOT_TOKEN en .env}
     depends_on:
       - loki
-    restart: unless-stopped
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./provisioning:/etc/grafana/provisioning
-      
+      # Todo el estado de Grafana sale de acá: datasource, alert rules,
+      # contact points y dashboards. Nada se configura por la UI.
+      - ./provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+
 volumes:
+  loki-data:
   grafana-data:

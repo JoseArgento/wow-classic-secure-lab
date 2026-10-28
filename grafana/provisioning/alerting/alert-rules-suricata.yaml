@@ -1,0 +1,119 @@
+# Reglas de RED (Suricata IDS), escritas a mano.
+# No salen de Sigma: la detección ya la hace la firma de Suricata (ET Open);
+# acá solo se decide qué alertas de Suricata merecen pasar al SOAR.
+# Separadas de alert-rules.yaml, que lo genera generate_alerts.py.
+#
+# Mismo payload que las reglas Sigma con IP (label ip + annotation severity),
+# así el workflow de n8n las procesa sin cambios. `sig` agrega el nombre de
+# la firma, que es lo que explica qué se vio.
+#
+# Prioridad de Suricata (alert.severity): 1 = alta, 2 = media, 3 = baja.
+# Las de prioridad 3 (ET INFO, políticas) quedan en Loki para consulta, sin
+# notificar: con ellas el SOAR sería ruido.
+#
+# group_by por ip y firma: cada combinación sale en su PROPIO webhook. Sin
+# esto, Grafana junta en un mismo envío las instancias de una regla, y el
+# workflow de n8n solo procesa alerts[0]. En la primera prueba la regla tuvo
+# 2 instancias (Kali e i3) y a Telegram llegó un solo veredicto.
+#
+# Ojo: src_ip es quien ORIGINA el paquete que disparó la firma. En una firma
+# de tráfico saliente puede ser el propio i3 (192.168.1.66): n8n no propone
+# ban a IPs privadas (nodo IF ¿IP pública?).
+apiVersion: 1
+groups:
+- orgId: 1
+  name: suricata-ids
+  folder: Security
+  interval: 1m
+  rules:
+  - uid: suricata-prioridad-1
+    title: Suricata IDS - prioridad alta
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip, sig) (
+            count_over_time(
+              {job="suricata", event_type="alert"}
+              | json ip="src_ip", sig="alert.signature", prio="alert.severity"
+              | prio = 1 [5m]
+            )
+          )
+        instant: true
+        queryType: instant
+        refId: A
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+        refId: C
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: "{{ $labels.ip }}"
+      severity: high
+      summary: "Suricata: {{ $labels.sig }} desde {{ $labels.ip }}"
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by: [grafana_folder, alertname, ip, sig]
+
+  - uid: suricata-prioridad-2
+    title: Suricata IDS - prioridad media
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip, sig) (
+            count_over_time(
+              {job="suricata", event_type="alert"}
+              | json ip="src_ip", sig="alert.signature", prio="alert.severity"
+              | prio = 2 [5m]
+            )
+          )
+        instant: true
+        queryType: instant
+        refId: A
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+        refId: C
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: "{{ $labels.ip }}"
+      severity: medium
+      summary: "Suricata: {{ $labels.sig }} desde {{ $labels.ip }}"
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by: [grafana_folder, alertname, ip, sig]
