@@ -1,0 +1,7 @@
+# Archivos con datos reales: hash de contraseña, clave pública, rutas locales
+*/user-data
+local.env
+
+# Imágenes y artefactos de VirtualBox
+*.iso
+*.vdi

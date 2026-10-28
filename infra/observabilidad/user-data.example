@@ -1,0 +1,115 @@
+#cloud-config
+# =====================================================================
+# user-data.example - Autoinstall de la VM "observabilidad" (Loki + Grafana)
+# Ubuntu Server 26.04 Live Server (subiquity)
+# =====================================================================
+# La primera línea DEBE ser exactamente "#cloud-config".
+#
+# USO
+#   cp user-data.example user-data      # "user-data" está en .gitignore
+#   Reemplazá cada REEMPLAZAR_*. deploy-vm.sh se niega a correr si queda alguno.
+#
+# POR QUÉ user-data NO SE COMMITEA
+#   Lleva el hash de la contraseña. Un hash SHA-512 no revela la contraseña,
+#   pero publicado le da a cualquiera intentos ilimitados de fuerza bruta offline.
+#
+# Cómo generar contraseña + hash y la clave SSH: ver infra/README.md.
+# =====================================================================
+
+autoinstall:
+  version: 1
+
+  # --- Idioma / teclado ---
+  locale: es_AR.UTF-8
+  keyboard:
+    layout: latam
+    variant: ""
+
+  # --- Red ---
+  # DHCP sobre la primera placa (en VirtualBox suele ser enp0s3). La VM va en
+  # adaptador puente y su IP queda fija por RESERVA DHCP en el router, atada a
+  # la MAC definida en vm.conf. Sin esa reserva, el router puede cambiarle la
+  # IP y el i3 deja de encontrar a Loki.
+  network:
+    version: 2
+    ethernets:
+      any-nic:
+        match:
+          name: "e*"
+        dhcp4: true
+
+  # --- Identidad ---
+  identity:
+    hostname: observabilidad
+    username: blue-team-an
+    # Hash SHA-512 ($6$...). Nunca la contraseña en claro en este archivo,
+    # ni siquiera en un comentario.
+    password: "REEMPLAZAR_CON_HASH_SHA512"
+
+  # --- SSH ---
+  # Solo clave. La contraseña queda para sudo y para la consola de VirtualBox.
+  ssh:
+    install-server: true
+    allow-pw: false
+    authorized-keys:
+      - REEMPLAZAR_CON_CLAVE_PUBLICA   # contenido de ~/.ssh/id_ed25519_homelab.pub
+
+  # --- Almacenamiento ---
+  # "direct": una sola partición. Para un lab alcanza; si hace falta más
+  # espacio se agranda el .vdi y la partición.
+  storage:
+    layout:
+      name: direct
+
+  # --- Paquetes ---
+  packages:
+    - curl
+    - vim
+    - tmux
+    - htop
+    - net-tools
+    - jq
+    - docker.io
+    - docker-compose-v2
+
+  # --- Parches de seguridad al instalar ---
+  updates: security
+
+  refresh-installer:
+    update: false
+
+  # 26.04 instala un metapaquete OEM/HWE por defecto; en una VM no hace falta.
+  oem:
+    install: false
+
+  shutdown: reboot
+
+  late-commands:
+    - curtin in-target --target=/target -- systemctl enable ssh
+
+  # ===================================================================
+  # Primer arranque (cloud-init sobre el sistema ya instalado).
+  # Corre UNA vez en el primer boot; después el instalador deja un marker
+  # (/etc/cloud/cloud-init.disabled) y `cloud-init status` pasa a decir
+  # "disabled". Eso es esperable: no significa que no haya corrido.
+  # Verificado (oct 2026): `groups` muestra docker y `ufw status` active.
+  # ===================================================================
+  user-data:
+    runcmd:
+      # Usuario (uid 1000) al grupo docker, sin repetir el nombre.
+      # Ojo: el grupo docker equivale a root. Aceptable en una VM de un
+      # solo admin; queda documentado en el threat model.
+      - [sh, -c, 'usermod -aG docker "$(id -nu 1000)"']
+
+      # Firewall: todo cerrado salvo SSH desde la LAN.
+      # Verificá la subred con `ipconfig` en Windows (ej. 192.168.1.0/24).
+      #
+      # IMPORTANTE: Docker escribe iptables directo y se saltea ufw para los
+      # puertos publicados. Por eso Loki y Grafana se publican SIEMPRE como
+      # 127.0.0.1:puerto en el compose:
+      #   - Loki  recibe por el túnel SSH inverso desde el i3.
+      #   - Grafana se abre con: ssh -L 3000:localhost:3000 <usuario>@<ip>
+      - ufw default deny incoming
+      - ufw default allow outgoing
+      - ufw allow from 192.168.1.0/24 to any port 22 proto tcp comment 'SSH solo LAN'
+      - ufw --force enable

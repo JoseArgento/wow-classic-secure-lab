@@ -1,0 +1,4 @@
+# meta-data - requerido por cloud-init (NoCloud).
+# instance-id identifica esta instalación; si cambia, cloud-init vuelve a
+# correr los módulos de primer arranque.
+instance-id: observabilidad-001
