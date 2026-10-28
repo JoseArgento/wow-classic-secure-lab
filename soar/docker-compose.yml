@@ -1,0 +1,65 @@
+# SOAR del lab: n8n + Postgres, en la VM `ai-lab` (192.168.1.54).
+#
+# n8n recibe las alertas de Grafana por webhook, enriquece la IP (AbuseIPDB,
+# WHOIS/RDAP, VirusTotal), pide un veredicto a un LLM (Groq) y, si
+# corresponde, propone el ban por Telegram. Con aprobación humana, ejecuta
+# soar-ban.sh en el i3 por SSH con un usuario restringido. Ver README.md.
+#
+# Postgres guarda SOLO el cache de veredictos (tabla `verdicts`). n8n usa su
+# propia base SQLite dentro del volumen n8n_data.
+#
+# Secretos en .env (ver .env.example). Las claves de API y la clave SSH
+# viven como credenciales de n8n, cifradas dentro de n8n_data.
+#
+# Los nombres de los volúmenes (n8n_data, postgres-data) y el nombre del
+# proyecto (`n8n`) NO se cambian: los volúmenes reales se llaman
+# n8n_n8n_data y n8n_postgres-data, y renombrar cualquiera de los dos haría
+# que Docker cree volúmenes vacíos (workflows, credenciales y cache perdidos).
+
+name: n8n
+
+services:
+  n8n:
+    # n8n 2.28.3, fijada por digest (oct 2026). Para actualizar: leer las
+    # release notes, respaldar n8n_data y recién ahí cambiar el digest.
+    image: docker.n8n.io/n8nio/n8n@sha256:d136339f394dbe7f5a8cb87c2882348c0fc0a404edc0380ba03f1d2664bc0a97
+    restart: unless-stopped
+    ports:
+      # Publicado en la LAN: Grafana (192.168.1.x) entrega acá las alertas.
+      # OJO: Docker se saltea ufw. Ver "Deuda" en README.md.
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=America/Argentina/Cordoba
+      - TZ=America/Argentina/Cordoba
+      # El editor se usa por HTTP dentro de la LAN; sin TLS, la cookie
+      # "Secure" haría imposible loguearse. No exponer n8n fuera de la LAN.
+      - N8N_SECURE_COOKIE=false
+      - N8N_HOST=192.168.1.54
+      - WEBHOOK_URL=http://192.168.1.54:5678/
+      - N8N_EDITOR_BASE_URL=http://192.168.1.54:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+
+  postgres:
+    # postgres:16, fijada por digest (oct 2026).
+    image: postgres@sha256:fe03a7605299a34ddf5e4f285dff78c3d7190a576b3c6b46f2fcff69f4bffd54
+    restart: unless-stopped
+    # Sin `ports`: la base solo es accesible desde la red interna del compose
+    # (n8n la alcanza como host `postgres`). El 5432 no se publica.
+    environment:
+      - POSTGRES_USER=soar
+      - POSTGRES_DB=soar
+      # Postgres fija la contraseña SOLO en el primer arranque (volumen
+      # vacío). Cambiarla acá después no la cambia en la base.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Crea la tabla `verdicts` en un despliegue nuevo. Solo corre con el
+      # volumen vacío; sobre una base existente no hace nada.
+      - ./sql:/docker-entrypoint-initdb.d:ro
+
+volumes:
+  n8n_data:
+  postgres-data:

@@ -1,0 +1,8 @@
+# Secretos
+.env
+
+# Respaldos: n8n-backup/ trae la clave de cifrado de las credenciales
+# (config) y la base SQLite de n8n; los .sql traen IPs reales del cache.
+n8n-backup/
+*.tgz
+verdicts-*.sql
