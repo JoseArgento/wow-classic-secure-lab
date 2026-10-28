@@ -98,12 +98,12 @@ journald (EC2) → Promtail → túnel SSH → Loki → Grafana ✅
 
 **Eventos de login fallido detectados en tiempo real:**
 
-![Detección de logins fallidos](../evidence/grafana-failed-logins.png)
+![Detección de logins fallidos](../../evidence/grafana-failed-logins.png)
 
 Al superar el umbral (5 intentos en 10 minutos), `fail2ban` ejecutó la respuesta
 automática y baneó la IP de origen:
 
-![fail2ban baneo automático](../evidence/fail2ban-banned.png)
+![fail2ban baneo automático](../../evidence/fail2ban-banned.png)
 
 ### Dashboard de monitoreo de autenticación
 
@@ -111,7 +111,7 @@ Se construyó un dashboard en Grafana con paneles de intentos fallidos (total e
 histórico), eventos por servicio (top-N), logins exitosos y actividad SSH reciente,
 con auto-refresh — al estilo de un panel de SOC. *(Datos sensibles sanitizados.)*
 
-![Dashboard Blue Team en Grafana](../evidence/grafana-dashboard.png)
+![Dashboard Blue Team en Grafana](../../evidence/grafana-dashboard.png)
 
 ### Consultas LogQL de ejemplo
 

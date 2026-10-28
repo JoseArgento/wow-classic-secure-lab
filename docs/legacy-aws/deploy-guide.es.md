@@ -31,7 +31,7 @@ lo que ahorra RAM, tiempo y créditos de AWS.
 
 1. **Cliente WoW 1.12.1 (build 5875) verificado.** VMaNGOS extrae el contenido del
    juego de un cliente original. Como las copias provienen de fuentes no oficiales,
-   debe verificarse antes de usar (ver [`evidence/binary-verification.es.md`](../evidence/binary-verification.es.md)).
+   debe verificarse antes de usar (ver [`evidence/binary-verification.es.md`](../../evidence/binary-verification.es.md)).
 2. **Docker Desktop** instalado en el equipo donde está el cliente (para la extracción de datos).
 3. **Cuenta de AWS** con acceso a EC2.
 
@@ -69,7 +69,7 @@ que el `realmlist` de los jugadores no cambie cada vez que la instancia se detie
 
 ## 🔒 Fase 2 — Hardening del sistema operativo
 
-Puede aplicarse manualmente o con el script [`scripts/hardening.sh`](../scripts/hardening.sh)
+Puede aplicarse manualmente o con el script [`scripts/hardening.sh`](scripts/hardening.sh)
 (idempotente). Resumen de controles:
 
 ```bash

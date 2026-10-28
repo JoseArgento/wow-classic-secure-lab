@@ -1,22 +1,25 @@
 # ─────────────────────────────────────────────
-#  Secretos y credenciales — NUNCA al repo
+#  Secretos y credenciales: NUNCA al repo
 # ─────────────────────────────────────────────
 *.pem
 *.key
 *.crt
 .env
 **/db.env
+local.env
+*/user-data
 
-# El compose.yaml REAL tiene passwords/IP → subí solo el .example
-compose.yaml
-!compose.yaml.example
+# Desde la v3 los compose NO llevan secretos (van en .env, ver cada
+# .env.example), así que se versionan tal cual: vmangos/compose.yaml,
+# alloy/compose.yaml, grafana/ y soar/docker-compose.yml.
+# (Antes se ignoraba `compose.yaml` porque tenía contraseñas adentro.)
 
-# Las configs REALES pueden tener datos sensibles → subí solo los .example
+# Las configs REALES de VMaNGOS pueden tener datos sensibles
 config/*.conf
 !config/*.conf.example
 
 # ─────────────────────────────────────────────
-#  Datos del cliente — copyright + pesan GB
+#  Datos del cliente: copyright + pesan GB
 # ─────────────────────────────────────────────
 storage/
 client-data/
@@ -25,11 +28,21 @@ extracted-data/
 *.mpq
 
 # ─────────────────────────────────────────────
-#  Backups de base de datos
+#  Backups y volcados (traen datos reales)
 # ─────────────────────────────────────────────
 *.sql.gz
 *.dump
 backups/
+verdicts-*.sql
+n8n-backup/
+*.tgz
+*.tar.gz
+
+# ─────────────────────────────────────────────
+#  Imágenes de disco / VMs
+# ─────────────────────────────────────────────
+*.iso
+*.vdi
 
 # ─────────────────────────────────────────────
 #  Ruido del sistema / editores
@@ -41,3 +54,4 @@ Thumbs.db
 *~
 .idea/
 .vscode/
+__pycache__/

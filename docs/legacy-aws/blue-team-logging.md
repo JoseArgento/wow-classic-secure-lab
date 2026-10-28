@@ -96,12 +96,12 @@ journald (EC2) → Promtail → SSH tunnel → Loki → Grafana ✅
 
 **Failed login events detected in real time:**
 
-![Failed login detection](../evidence/grafana-failed-logins.png)
+![Failed login detection](../../evidence/grafana-failed-logins.png)
 
 After crossing the threshold (5 attempts in 10 minutes), `fail2ban` executed the
 automatic response and banned the source IP:
 
-![fail2ban automatic ban](../evidence/fail2ban-banned.png)
+![fail2ban automatic ban](../../evidence/fail2ban-banned.png)
 
 ### Authentication monitoring dashboard
 
@@ -109,7 +109,7 @@ A Grafana dashboard was built with panels for failed attempts (total and over ti
 events per service (top-N), successful logins and recent SSH activity, with
 auto-refresh — SOC-panel style. *(Sensitive data sanitized.)*
 
-![Blue Team dashboard in Grafana](../evidence/grafana-dashboard.png)
+![Blue Team dashboard in Grafana](../../evidence/grafana-dashboard.png)
 
 ### Example LogQL queries
 
