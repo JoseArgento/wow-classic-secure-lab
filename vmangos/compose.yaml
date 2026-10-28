@@ -1,0 +1,130 @@
+# VMaNGOS (WoW Classic 1.12.1) en el i3 - basado en vmangos-deploy
+# (https://github.com/mserajnik/vmangos-deploy), compose.yaml.example
+# de la versión 1 (2026-10-04). Ver docs/breaking-changes.md del upstream.
+#
+# Cambios respecto del ejemplo del upstream:
+#   - Credenciales y dirección del realm en .env (ver .env.example).
+#   - restart: on-failure en vez de unless-stopped: si un servicio se cae
+#     por un error, Docker lo reintenta (hasta 5 veces), pero NO lo levanta
+#     al bootear el i3. VMaNGOS se prende a pedido (`docker compose up -d`).
+#     Sin ninguna política, un realmd que arrancaba antes que la base
+#     quedaba caído para siempre.
+#   - Zona horaria, nombre del realm y zona del realm de este lab.
+#
+# Desde la versión 1, la imagen arma la conexión a la base con
+# VMANGOS_DATABASE_USER / VMANGOS_DATABASE_PASSWORD e IGNORA las cadenas
+# *DatabaseInfo de config/*.conf: la contraseña vive solo en .env.
+#
+# OJO: los puertos que publica Docker (3724, 8085) se saltean ufw, y el
+# tráfico hacia los containers pasa por la cadena `forward`, no `input`:
+# los bans de fail2ban tienen que cubrir ese camino.
+
+name: vmangos
+
+services:
+  database:
+    restart: on-failure:5
+    # Fijada por digest: la versión con la que se migró y verificó (oct 2026).
+    # Para actualizar: leer docs/breaking-changes.md del upstream primero.
+    image: ghcr.io/mserajnik/vmangos-database@sha256:ab9425e7532ef7fdcdf6d2033bf21fb92c994e8b33b6419787f0bba6dc49f772
+    stop_grace_period: 2m # Deja terminar el paso de arranque en curso al frenar.
+    healthcheck:
+      test: ['CMD', 'vmangos-healthcheck']
+      interval: 1m
+      timeout: 3s
+      retries: 5
+      start_period: 24h
+    volumes:
+      - vmangos-database:/var/lib/mysql
+      - ./storage/database/custom-sql:/sql/custom:ro
+    environment:
+      - VMANGOS_DEPLOY_VERSION=1
+      - TZ=America/Argentina/Cordoba
+      # MariaDB fija usuario y contraseñas SOLO en el primer arranque.
+      - MARIADB_USER=mangos
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD:?Falta MARIADB_PASSWORD en .env}
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD:?Falta MARIADB_ROOT_PASSWORD en .env}
+      - VMANGOS_REALMLIST_NAME=Disney
+      - VMANGOS_REALMLIST_ADDRESS=${VMANGOS_REALMLIST_ADDRESS:?Falta VMANGOS_REALMLIST_ADDRESS en .env}
+      - VMANGOS_REALMLIST_PORT=8085
+      - VMANGOS_REALMLIST_ICON=1
+      - VMANGOS_REALMLIST_TIMEZONE=4 # Latin America
+      - VMANGOS_REALMLIST_ALLOWED_SECURITY_LEVEL=0
+      - VMANGOS_ENABLE_AUTOMATIC_WORLD_DB_CORRECTIONS=1
+      - VMANGOS_HALT_ON_MIGRATION_EDITS=1
+      - VMANGOS_PROCESS_CUSTOM_SQL=1
+
+  realmd:
+    restart: on-failure:5
+    # Tag 5875 (cliente 1.12.1), fijada por digest. Ver nota de la base.
+    image: &server-image ghcr.io/mserajnik/vmangos-server@sha256:d79c4018bcac49c77b6c7dd688c9985b7de04727aad7f7f0ba273d2050015372
+    command: realmd
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'nc', '-z', 'localhost', '3724']
+      interval: 1m
+      timeout: 3s
+      retries: 5
+      start_period: 5m
+    ports:
+      - 3724:3724
+    volumes:
+      - ./config/realmd.conf:/opt/vmangos/config/realmd.conf:ro
+      # Alloy lee Realmd.log desde acá (job=vmangos, service=realmd).
+      - ./storage/realmd/logs:/opt/vmangos/storage/logs
+    environment: &server-environment
+      - VMANGOS_DEPLOY_VERSION=1
+      - TZ=America/Argentina/Cordoba
+      # Los containers arrancan como root y bajan a este UID/GID, que tiene
+      # que ser el dueño de las carpetas de storage en el host (ver `id`).
+      - VMANGOS_UID=1000
+      - VMANGOS_GID=1000
+      - VMANGOS_DATABASE_USER=mangos
+      - VMANGOS_DATABASE_PASSWORD=${MARIADB_PASSWORD:?Falta MARIADB_PASSWORD en .env}
+
+  mangosd:
+    restart: on-failure:5
+    image: *server-image
+    command: mangosd
+    tty: true
+    stdin_open: true
+    depends_on:
+      database:
+        condition: service_healthy
+    stop_grace_period: 2m # Tiempo para guardar el mundo al apagar.
+    healthcheck:
+      test: ['CMD', 'nc', '-z', 'localhost', '8085']
+      interval: 1m
+      timeout: 3s
+      retries: 5
+      start_period: 5m
+    ports:
+      - 8085:8085 # El puerto del host tiene que coincidir con VMANGOS_REALMLIST_PORT.
+    volumes:
+      - ./config/mangosd.conf:/opt/vmangos/config/mangosd.conf:ro
+      - ./storage/mangosd/extracted-data:/opt/vmangos/storage/data:ro
+      - ./storage/mangosd/logs:/opt/vmangos/storage/logs
+      - ./storage/mangosd/honor:/opt/vmangos/storage/honor
+    environment: *server-environment
+
+  # --- Herramientas (solo corren a mano: docker compose run --rm <servicio>) ---
+
+  check-deploy-version:
+    image: *server-image
+    profiles: ['tools']
+    entrypoint: ['check-deploy-version']
+    environment: *server-environment
+
+  extract-client-data:
+    image: *server-image
+    profiles: ['tools']
+    entrypoint: ['extract-client-data']
+    volumes:
+      - ./storage/mangosd/client-data:/opt/vmangos/storage/client-data
+      - ./storage/mangosd/extracted-data:/opt/vmangos/storage/data
+    environment: *server-environment
+
+volumes:
+  vmangos-database:
