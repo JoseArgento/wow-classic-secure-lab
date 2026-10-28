@@ -1,0 +1,48 @@
+# /etc/fail2ban/jail.d/lab.local - jails del lab en el i3.
+#
+# POR QUÉ PREROUTING: VMaNGOS publica 3724/8085 con Docker. El tráfico hacia
+# un container entra por DNAT (prerouting, prioridad -100) y sigue por la
+# cadena `forward`, NO por `input`, que es donde fail2ban engancha por
+# defecto. Con el default, un IP baneado podía seguir llegando al realmd.
+# Enganchando en prerouting con prioridad -150 el ban corre ANTES del DNAT
+# y corta todo: SSH, juego y lo que venga.
+# En prerouting nftables no admite `reject`, por eso blocktype=drop.
+
+[DEFAULT]
+banaction = nftables-multiport[chain_hook=prerouting, chain_priority=-150, blocktype=drop]
+banaction_allports = nftables-allports[chain_hook=prerouting, chain_priority=-150, blocktype=drop]
+# Nunca banear la LAN ni loopback (soar-ban.sh además rechaza rangos privados).
+ignoreip = 127.0.0.1/8 ::1 192.168.1.0/24
+
+[sshd]
+enabled = true
+backend = systemd
+maxretry = 5
+
+# --- Jails del SOAR: solo bans manuales vía soar-ban.sh ---
+# No miran logs de verdad: el filtro dummy existe porque fail2ban exige
+# uno, y el archivo vacío porque exige un logpath.
+
+[soar]
+enabled = true
+filter = soar
+# "allports" por defecto solo cubre TCP (meta l4proto tcp). Valheim usa UDP:
+# sin esto, un IP baneado podía seguir llegándole. El valor entra en el
+# template `meta l4proto { <protocol> }` -> meta l4proto { tcp, udp }.
+protocol = tcp, udp
+backend = polling
+logpath = /var/log/fail2ban-soar.log
+banaction = %(banaction_allports)s
+bantime = 3600
+
+[soar-severe]
+enabled = true
+filter = soar
+# "allports" por defecto solo cubre TCP (meta l4proto tcp). Valheim usa UDP:
+# sin esto, un IP baneado podía seguir llegándole. El valor entra en el
+# template `meta l4proto { <protocol> }` -> meta l4proto { tcp, udp }.
+protocol = tcp, udp
+backend = polling
+logpath = /var/log/fail2ban-soar.log
+banaction = %(banaction_allports)s
+bantime = 259200

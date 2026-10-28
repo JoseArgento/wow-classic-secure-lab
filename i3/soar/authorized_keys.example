@@ -1,0 +1,4 @@
+# ~soar/.ssh/authorized_keys - una sola línea:
+#   restrict              -> sin pty, sin forwarding de ningún tipo
+#   from="192.168.1.54"   -> la clave solo sirve desde la VM de n8n
+restrict,from="192.168.1.54" ssh-ed25519 AAAA...CLAVE_PUBLICA_DE_N8N... n8n-soar-ban

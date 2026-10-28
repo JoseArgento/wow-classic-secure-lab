@@ -1,0 +1,5 @@
+# /etc/cron.d/suricata-update - firmas ET Open al día.
+# Una vez por día baja las firmas, las prueba (suricata -T) y, si pasan,
+# las recarga con el ExecReload del propio servicio (suricatasc reload-rules),
+# sin cortar la captura. La salida va al journal (identifier=suricata-update) -> Loki.
+17 4 * * * root /usr/bin/suricata-update --quiet --reload-command 'systemctl reload suricata' 2>&1 | /usr/bin/logger -t suricata-update

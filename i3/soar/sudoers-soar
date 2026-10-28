@@ -1,0 +1,3 @@
+# /etc/sudoers.d/soar - root:root 0440. Validar con: visudo -cf <archivo>
+# El usuario soar solo puede correr el wrapper; el wrapper valida el input.
+soar ALL=(root) NOPASSWD: /usr/local/bin/soar-ban.sh

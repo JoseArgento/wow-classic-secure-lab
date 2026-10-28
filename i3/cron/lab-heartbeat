@@ -1,0 +1,6 @@
+# /etc/cron.d/lab-heartbeat - root:root 0644
+# Latido del dead man's switch: cada minuto deja una línea en el journal.
+# Recorre journal -> Alloy -> túnel -> Loki; si cualquier eslabón se corta,
+# Grafana deja de verla y alerta por Telegram (sin pasar por n8n).
+# Corre como `nobody`: escribir al journal no requiere privilegios.
+* * * * * nobody /usr/bin/logger -t lab-heartbeat "lab-heartbeat i3 alive"

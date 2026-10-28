@@ -1,0 +1,3 @@
+# /etc/cron.d/duckdns - root:root 0644
+# Corre como root porque /etc/duckdns.env (con el token) es solo de root.
+*/5 * * * * root /usr/local/bin/duckdns-update.sh
