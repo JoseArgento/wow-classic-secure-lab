@@ -1,0 +1,130 @@
+// Alloy en el i3: reemplaza a Promtail (EOL). Generado con
+// `alloy convert --source-format=promtail` desde la config de la EC2 y
+// revisado a mano contra el contrato de labels.
+//
+// CONTRATO DE LABELS: las alert rules y dashboards de Grafana filtran por
+// estos labels. Cambiar uno rompe la detección en silencio.
+//   journal -> job="systemd-journal", unit=<unidad systemd>, host
+//   realmd  -> job="vmangos", service="realmd", host (+ filename automático)
+//   suricata -> job="suricata", event_type="alert", host
+//
+// host: era "vmangos-ec2" en AWS. Acá es "i3", así el histórico restaurado
+// y lo nuevo se distinguen por origen. Las reglas no filtran por host
+// (verificado con grep sobre grafana/provisioning antes de cambiarlo).
+
+// --- Capa sistema: journal (sshd, fail2ban, soar-ban, etc.) ---
+
+discovery.relabel "journal" {
+  targets = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+
+  // Identificador syslog (lo que pone `logger -t <tag>`): soar-ban,
+  // lab-heartbeat, sshd... Sin esto, el tag no queda en ningún lado
+  // buscable en Loki. Agregar un label no rompe queries existentes.
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label  = "identifier"
+  }
+}
+
+loki.source.journal "journal" {
+  max_age       = "12h"
+  relabel_rules = discovery.relabel.journal.rules
+  forward_to    = [loki.write.default.receiver]
+  labels        = {
+    job  = "systemd-journal",
+    host = "i3",
+  }
+}
+
+// --- Capa juego: realmd de VMaNGOS ---
+// El container monta storage/realmd/logs del host en esta ruta (la misma
+// que usaba Promtail). Realmd.log se reescribe en cada arranque de realmd;
+// Alloy detecta el truncado y vuelve a leer desde el principio.
+
+loki.source.file "vmangos_realmd" {
+  targets = [{
+    __path__ = "/var/log/vmangos/realmd/Realmd.log",
+    job      = "vmangos",
+    service  = "realmd",
+    host     = "i3",
+  }]
+  forward_to = [loki.process.realmd.receiver]
+}
+
+// Usa la fecha escrita en cada línea del realmd en vez de la hora en que
+// Alloy la leyó. Sin esto, al arrancar Alloy todo el archivo quedaba con
+// la misma hora y la línea de tiempo de un incidente era incorrecta.
+// Formato del realmd: "2026-10-27 12:35:18 [AuthChallenge] ..." en hora
+// local (TZ del container). Si una línea no trae fecha, conserva la de lectura.
+loki.process "realmd" {
+  stage.regex {
+    expression = `^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`
+  }
+
+  stage.timestamp {
+    source   = "ts"
+    format   = "2006-01-02 15:04:05"
+    location = "America/Argentina/Cordoba"
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+// --- Capa red: alertas de Suricata (IDS) ---
+// eve.json trae TODO lo que Suricata ve (flows, DNS, TLS, stats...): miles
+// de líneas por hora. Queda completo en el i3 para investigar a mano; a Loki
+// solo viajan las alertas (event_type = "alert").
+
+loki.source.file "suricata" {
+  targets = [{
+    __path__ = "/var/log/suricata/eve.json",
+    job      = "suricata",
+    host     = "i3",
+  }]
+  forward_to = [loki.process.suricata.receiver]
+}
+
+loki.process "suricata" {
+  stage.json {
+    expressions = {
+      event_type = "event_type",
+      ts         = "timestamp",
+    }
+  }
+
+  stage.labels {
+    values = { event_type = "" }
+  }
+
+  // Todo lo que no es alerta se descarta acá (y cuenta en la métrica de
+  // descartes de Alloy con este motivo).
+  stage.match {
+    selector            = `{job="suricata", event_type!="alert"}`
+    action              = "drop"
+    drop_counter_reason = "suricata_no_alerta"
+  }
+
+  // Hora del evento según Suricata, no la de lectura.
+  // Formato: 2026-10-27T22:40:01.123456-0300
+  stage.timestamp {
+    source = "ts"
+    format = "2006-01-02T15:04:05.999999-0700"
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+// --- Destino: boca del túnel SSH inverso (llega al Loki de la VM) ---
+// Si el túnel está caído, Alloy reintenta; el dead man's switch de Grafana
+// es el que avisa si el silencio se prolonga.
+
+loki.write "default" {
+  endpoint {
+    url = "http://127.0.0.1:3100/loki/api/v1/push"
+  }
+}

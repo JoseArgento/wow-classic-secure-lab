@@ -1,0 +1,35 @@
+# Alloy en el i3: lee journal + Realmd.log + eve.json (Suricata) y empuja a Loki por el túnel.
+# Es capa de defensa: arranca siempre con la máquina (a diferencia de
+# VMaNGOS y Valheim, que van a pedido).
+name: alloy
+
+services:
+  alloy:
+    # v1.21.2, fijada por digest tras verificar la ingesta (oct 2026).
+    image: grafana/alloy@sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18
+    # Red del host: necesita llegar a 127.0.0.1:3100, la boca del túnel.
+    network_mode: host
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      # UI de Alloy solo en localhost (ver con ssh -L 12345:localhost:12345 i3)
+      - --server.http.listen-addr=127.0.0.1:12345
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      # Posiciones de lectura: sin esto, cada restart re-envía logs viejos.
+      - alloy-data:/var/lib/alloy/data
+      # Journal del host, solo lectura.
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      # Logs de realmd, en la misma ruta interna que usaba Promtail.
+      - ../vmangos-deploy/storage/realmd/logs:/var/log/vmangos/realmd:ro
+      # eve.json de Suricata (solo se envían las alertas, ver config.alloy).
+      - /var/log/suricata:/var/log/suricata:ro
+      # Zonas horarias del host, para interpretar la fecha local del realmd.
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
+    restart: unless-stopped
+
+volumes:
+  alloy-data:
