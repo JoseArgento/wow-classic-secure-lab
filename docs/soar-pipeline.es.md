@@ -1,16 +1,23 @@
-# 🤖 Pipeline SOAR — Triage con LLM y Respuesta con Humano en el Loop
+# Pipeline SOAR: Triage con LLM y Respuesta con Humano en el Loop
 
 [English](soar-pipeline.md) | **Español**
 
-> Extensión de respuesta del laboratorio blue team: cada alerta disparada por el
-> SIEM se enriquece automáticamente, es triageada por un analista LLM, cacheada y
-> entregada a Telegram — y las IPs confirmadas como hostiles pueden banearse en
-> **todos** los vectores de ataque con un solo toque, a través de un canal de
-> ejecución deliberadamente restringido.
+> La parte de respuesta del lab: cada alerta que dispara el SIEM se enriquece
+> sola, la analiza un LLM, el veredicto queda guardado en un cache y llega a
+> Telegram. Si la IP resulta hostil, se puede banear en **todos** los puertos
+> con un solo toque, a través de un canal de ejecución restringido a propósito.
+
+> **v3 (octubre de 2026):** el pipeline ahora trabaja sobre el lab doméstico
+> (el servidor i3) en lugar de AWS. Cambios desde la v2: modelo
+> `openai/gpt-oss-120b`; las alertas de Suricata como nueva entrada; un
+> **chequeo de IP pública antes de proponer** un ban; la firma o resumen de la
+> alerta llega al agente; respuestas de las herramientas recortadas para ahorrar
+> tokens; un **workflow de errores** que avisa por Telegram cualquier ejecución
+> fallida; y el workflow versionado en [`soar/`](../soar/).
 
 ---
 
-## 🎯 Objetivo
+## Objetivo
 
 Cerrar el ciclo de *detección* a *respuesta* sin sacar el criterio humano de la
 decisión que importa. La automatización se encarga del trabajo repetitivo de
@@ -20,7 +27,7 @@ sea el camino por defecto en cada etapa.
 
 ---
 
-## 🧩 Arquitectura
+## Arquitectura
 
 El pipeline corre sobre n8n (self-hosted, VM Ubuntu) y recibe las alertas desde
 el contact point webhook de Grafana:
@@ -32,7 +39,7 @@ flowchart TD
     F -->|sí| X1([descartar])
     F -->|no| C{¿veredicto en<br/>cache Postgres?}
     C -->|hit| M[Componer mensaje<br/>veredicto cacheado + conteo fresco]
-    C -->|miss| A[AI Agent — Groq<br/>llama-3.3-70b]
+    C -->|miss| A[AI Agent, Groq<br/>gpt-oss-120b]
     A <--> T1[AbuseIPDB]
     A <--> T2[RDAP]
     A <--> T3[VirusTotal]
@@ -40,12 +47,14 @@ flowchart TD
     S --> M
     M --> TG[Notificación Telegram]
     TG --> IF{¿Veredicto Malicioso<br/>O severidad high?}
-    IF -->|no| X2([fin — solo notificar])
-    IF -->|sí| SW[Telegram Send & Wait<br/>botones Ban / Descartar<br/>timeout 1h → no ban]
+    IF -->|no| X2([fin, solo notificar])
+    IF -->|sí| PUB{¿IP pública?}
+    PUB -->|no| X4([fin, amenaza interna:<br/>respuesta humana])
+    PUB -->|sí| SW[Telegram Send & Wait<br/>botones Ban / Descartar<br/>timeout 1h -> no ban]
     SW -->|aprobado| RX{¿La IP pasa la<br/>validación regex?}
     SW -->|descartado / timeout| X3([fin])
-    RX -->|sí| SSH[SSH — canal restringido<br/>tier según severidad]
-    SSH --> J[Jail fail2ban en EC2<br/>soar 1h / soar-severe 72h<br/>todos los puertos]
+    RX -->|sí| SSH[SSH, canal restringido<br/>tier según severidad]
+    SSH --> J[Jail fail2ban en el i3<br/>soar 1h / soar-severe 72h<br/>todos los puertos]
 ```
 
 | Etapa | Componente | Responsabilidad |
@@ -54,11 +63,11 @@ flowchart TD
 | Memoria | Cache de veredictos en PostgreSQL | Un análisis por IOC, no por alerta |
 | Triage | Agente LLM + 3 herramientas de enriquecimiento | Reputación, propiedad, veredicto conductual |
 | Notificación | Telegram | Veredicto + conteo fresco de eventos, siempre |
-| Respuesta | Send & Wait → SSH → fail2ban | Ban aprobado por humano, agnóstico del vector |
+| Respuesta | Send & Wait -> SSH -> fail2ban | Ban aprobado por humano, agnóstico del vector |
 
 ---
 
-## 🗃️ El cache de veredictos — y por qué importa separar los scopes
+## El cache de veredictos: y por qué importa separar los scopes
 
 Los atacantes repiten. La misma IP que intentó fuerza bruta por SSH a las 03:00
 aparece contra el protocolo del juego a las 03:20. Volver a correr tres consultas
@@ -73,8 +82,8 @@ La regla de diseño sutil que emergió:
 > renderizarse frescos en cada notificación.**
 
 La reputación de una IP, su propiedad (RDAP) y su veredicto conductual describen
-al *IOC* — son estables y cacheables. El nombre de la alerta y la cantidad de
-eventos en la ventana actual describen a *esta alerta* — renderizarlos desde el
+al *IOC*, son estables y cacheables. El nombre de la alerta y la cantidad de
+eventos en la ventana actual describen a *esta alerta*, renderizarlos desde el
 cache produce mensajes viejos y engañosos ("3 eventos" para siempre, sin importar
 lo que esté pasando de verdad). Por eso cada mensaje de Telegram se ensambla
 desde dos fuentes: cuerpo del veredicto cacheado + encabezado fresco de la
@@ -82,62 +91,62 @@ alerta tomado directamente del payload del webhook.
 
 ---
 
-## 🧠 Triage con LLM — enriquecimiento con regla de triangulación
+## Triage con LLM: enriquecimiento con regla de triangulación
 
-Un cache miss enruta el IOC a un nodo AI Agent (Groq, `llama-3.3-70b-versatile`)
+Un cache miss enruta el IOC a un nodo AI Agent (Groq, `openai/gpt-oss-120b`; reemplazó a `llama-3.3-70b-versatile` cuando Groq dio de baja ese modelo en agosto de 2026)
 con tres herramientas a disposición:
 
 | Herramienta | Pregunta que responde |
 |---|---|
 | **AbuseIPDB** | ¿La comunidad reportó esta IP? Score de confianza, categorías |
 | **RDAP** | ¿Quién es dueño de este rango? ¿Hosting, ISP residencial, cloud? |
-| **VirusTotal** | ¿Los vendors la marcan? Con matiz de interpretación — un conteo bajo de detecciones sobre una IP es evidencia débil en cualquier dirección |
+| **VirusTotal** | ¿Los vendors la marcan? Con matiz de interpretación, un conteo bajo de detecciones sobre una IP es evidencia débil en cualquier dirección |
 
 El system prompt codifica criterio de analista, no solo formato:
 
-- **Contexto de scoring conductual** — el agente sabe qué *significa* cada alerta
+- **Contexto de scoring conductual**, el agente sabe qué *significa* cada alerta
   operativamente (ej.: un evento de lockout de VMaNGOS representa **11 intentos
   fallidos confirmados** comprimidos en una sola línea de log, y jamás puede
   clasificarse como benigno por conteo de eventos).
-- **La regla de triangulación** — *una reputación limpia jamás puede anular
+- **La regla de triangulación**, *una reputación limpia jamás puede anular
   comportamiento hostil observado*. Los servicios de reputación tienen huecos de
   cobertura; los paquetes que golpean este servidor son la verdad de campo. Un
   score impecable en AbuseIPDB no neutraliza un patrón de fuerza bruta observado
-  — solo significa que somos los primeros en reportarlo.
+ , solo significa que somos los primeros en reportarlo.
 
 Veredictos posibles: **Malicioso / Sospechoso / Benigno**, cada uno con una
 justificación corta que viaja con la notificación.
 
 ---
 
-## 🚫 Respuesta con humano en el loop
+## Respuesta con humano en el loop
 
 El baneo totalmente automatizado se descartó a propósito: un falso positivo que
 banea a un jugador legítimo (o al admin) es peor que una respuesta demorada en
 el contexto de un lab. En cambio, el pipeline **propone** y un humano **dispone**:
 
-1. **Matriz de propuesta (nodo IF)** — se propone un ban si el veredicto del LLM
+1. **Matriz de propuesta (nodo IF)**, se propone un ban si el veredicto del LLM
    es *Malicioso* **o** si la severidad de la alerta es *high*. La severidad high
    siempre propone, sin importar la opinión del LLM: la severidad de las reglas
    de detección es determinística y pasa por code review; el LLM no tiene poder
    de veto sobre ella. La severidad se lee de `annotations.severity` (definida
    por la regla), no de los labels.
-2. **Telegram Send & Wait** — el analista recibe botones de Ban / Descartar.
+2. **Telegram Send & Wait**, el analista recibe botones de Ban / Descartar.
    Ante timeout (1 hora) el default es **no banear**: la ausencia de un humano
    nunca escala a una acción irreversible.
-3. **Validación de input** — la IP objetivo debe pasar una validación regex
+3. **Validación de input**, la IP objetivo debe pasar una validación regex
    estricta en n8n *antes* de llegar al nodo SSH. Los campos del payload de la
    alerta se tratan como input no confiable; es el equivalente SOAR de las
    queries parametrizadas.
-4. **Ejecución por tiers** — el nodo SSH banea hacia una jail elegida según
+4. **Ejecución por tiers**, el nodo SSH banea hacia una jail elegida según
    severidad: `soar` (1 h) para confirmaciones estándar, `soar-severe` (72 h)
    para alertas de severidad alta.
 
 ---
 
-## 🔐 Decisiones de seguridad en el diseño
+## Decisiones de seguridad en el diseño
 
-El canal de respuesta es el componente más peligroso del lab — es, por
+El canal de respuesta es el componente más peligroso del lab, es, por
 definición, ejecución remota de comandos contra el host productivo. Se construyó
 en consecuencia:
 
@@ -147,14 +156,14 @@ en consecuencia:
    túnel), y registra cada invocación en journald como pista de auditoría.
 2. **Usuario `soar` dedicado, `sudoers` restringido.** El usuario de automatización
    puede correr exactamente un comando como root: el wrapper. No fail2ban-client
-   directo, no una shell — un script, con los argumentos validados adentro.
+   directo, no una shell, un script, con los argumentos validados adentro.
 3. **Clave ed25519 con restricciones en `authorized_keys`.** La clave que usa n8n
    está bloqueada en `authorized_keys` (restricciones estilo forced command /
    no-pty), así que incluso el robo de la clave rinde el wrapper y nada más.
 4. **Bans agnósticos del vector vía jails dedicadas.** Las jails `soar` usan
    `banaction_allports` (nftables): un ban disparado por una alerta SSH también
    cierra los puertos del juego (3724/8085) y viceversa. Un mecanismo, todos los
-   vectores — sin duplicación por servicio.
+   vectores, sin duplicación por servicio.
 5. **Red de seguridad con `ignoreip`.** La IP de casa está exenta a nivel de
    fail2ban: ni siquiera un error completamente aprobado puede dejar al operador
    afuera.
@@ -164,29 +173,43 @@ en consecuencia:
 
 ---
 
-## 🧪 Lecciones del tuning
+## Lecciones del tuning
 
 - **La semántica de la severidad tiene que vivir en el prompt, no en la cabeza
   del analista.** El agente inicialmente clasificó una alerta de IP-lockout como
-  *Benigno* porque vio "1 evento" — técnicamente cierto, semánticamente erróneo
+  *Benigno* porque vio "1 evento", técnicamente cierto, semánticamente erróneo
   (ese único evento codifica 11 intentos fallidos). El fix fue codificar el
   significado de cada alerta en el system prompt, y quitarle al LLM el veto
   sobre las alertas de severidad alta por completo.
 - **Los veredictos cacheados sobreviven a las mejoras del prompt.** Tras mejorar
   el system prompt, los veredictos viejos generados bajo el prompt anterior
   seguían sirviéndose desde Postgres. Ahora los cambios de prompt implican
-  invalidar el cache — la misma disciplina que romper un cache de build después
+  invalidar el cache, la misma disciplina que romper un cache de build después
   de cambiar el compilador.
 - **El linaje de items de n8n se rompe en los nodos AI Agent.** Los nodos aguas
   abajo del agente deben referenciar el payload original explícitamente
-  (`$('Webhook').first()`) en vez de confiar en el flujo de items de `$json` —
+  (`$('Webhook').first()`) en vez de confiar en el flujo de items de `$json` -
   de lo contrario leen items vacíos en silencio.
+
+- **Mismo evento, menos contexto, otro veredicto.** Un escaneo SSH real desde
+  la LAN salió *Benigno*, y la rama de "solo notificar si no es benigno" lo
+  silenció, porque el agente veía "alerta de Suricata, 1 evento, IP privada"
+  pero no el nombre de la firma. Con la firma en el prompt, el mismo evento
+  salió *Sospechoso*.
+- **Una ejecución fallida es una ejecución muda.** En el plan gratuito (8K
+  tokens por minuto) un solo triage (~7K tokens) puede pasarse del límite; la
+  ejecución murió y nadie se enteró. Ahora cada falla llega a Telegram, y las
+  respuestas de las herramientas se recortan.
+- **Recortar tiene costo.** Al dejar el WHOIS en pocos campos también se
+  perdieron los `remarks`, donde un escáner de medición de internet declara
+  que no ataca. Reputación no es intención: lo que el agente no ve, no lo
+  puede pesar.
 
 ---
 
-## 🧠 Habilidades demostradas
+## Habilidades demostradas
 
-- Diseño de pipeline SOAR (ingesta → enriquecimiento → triage → respuesta) sobre n8n
+- Diseño de pipeline SOAR (ingesta -> enriquecimiento -> triage -> respuesta) sobre n8n
 - Integración de LLM para triage de seguridad con uso de herramientas y criterio
   de analista codificado
 - Diseño de cache (cache-aside) con un principio claro de scoping de datos
@@ -198,6 +221,6 @@ en consecuencia:
 
 ---
 
-*Parte del laboratorio de ciberseguridad — extensión de triage y respuesta
+*Parte del laboratorio de ciberseguridad, extensión de triage y respuesta
 automatizada. Las detecciones que alimentan este pipeline:
 [`detection-rules-ci`](https://github.com/JoseArgento/detection-rules-ci).*
