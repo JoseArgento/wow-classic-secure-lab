@@ -512,3 +512,443 @@ groups:
       - grafana_folder
       - alertname
       - ip
+  - uid: sigma-0d1dbb63241843
+    title: Web Scanner User Agent
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="nginx"} |~ `(?i)"user_agent":"[^"]*(sqlmap|nikto|nuclei|gobuster|feroxbuster|dirbuster|dirb|ffuf|fuzz faster u fool|wfuzz|wpscan|whatweb|nmap|masscan|zgrab|hydra|acunetix|nessus|openvas)` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 2
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: low
+      summary: 'Web Scanner User Agent: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
+  - uid: sigma-cc0c39b4f00249
+    title: Web Content Discovery
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="nginx"} |~ `(?i)"status":404,` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 20
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: low
+      summary: 'Web Content Discovery: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
+  - uid: sigma-a1e282015df04f
+    title: Web Sensitive File Probe
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="nginx"} |~ `(?i)"uri":"[^"]*(/\.env|/\.git|/\.svn|/\.hg|/\.aws|/\.ssh|/\.htpasswd|/\.htaccess|/\.ds_store|wp-config|wp-login|phpinfo|/server-status|\.(bak|old|orig|swp|sql|sqlite|zip|tar|tgz|gz|7z|rar)("|\?))` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 2
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: medium
+      summary: 'Web Sensitive File Probe: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
+  - uid: sigma-33680b99bdc84d
+    title: Web Login Failure
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="nginx"} |~ `(?i)"method":"POST","uri":"/login[^"]*","request":"[^"]*","status":401,` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 4
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: medium
+      summary: 'Web Login Failure: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
+  - uid: sigma-06cae6dc1c354c
+    title: Web SQL Injection Attempt
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="nginx"} |~ `(?i)"uri":"[^"]*(union(\+|%20|/\*[^"]*\*/)+(all(\+|%20)+)?select|(%27|')(\+|%20)*(or|and)(\+|%20)+(%27|'|[0-9a-z])[^&"+]*(=|%3d)|(%27|')(\+|%20)*(--|%23|;)|order(\+|%20)+by(\+|%20)+[0-9]|sqlite_master|information_schema|pg_sleep|sleep(\(|%28)|benchmark(\(|%28)|waitfor(\+|%20)+delay)` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: high
+      summary: 'Web SQL Injection Attempt: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
+  - uid: sigma-01794f8cb55747
+    title: Web Path Traversal Attempt
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (ip) (
+            count_over_time(
+              {job="nginx"} |~ `(?i)"(uri|request)":"[^"]*((\.|%2e|%252e)(\.|%2e|%252e)(/|\\|%2f|%5c|%252f|%255c)|etc(/|%2f|%252f)(passwd|shadow|hosts)|(boot|win)\.ini|proc(/|%2f|%252f)self)` | regexp `(?P<ip>\d+\.\d+\.\d+\.\d+)` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      ip: '{{ $labels.ip }}'
+      severity: high
+      summary: 'Web Path Traversal Attempt: actividad desde {{ $labels.ip }}'
+    isPaused: false
+    notification_settings:
+      receiver: n8n
+      group_by:
+      - grafana_folder
+      - alertname
+      - ip
+  - uid: sigma-f215e47ed24049
+    title: Web Server Error Response
+    condition: C
+    data:
+    - refId: A
+      queryType: instant
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: dfpmdh15h9d6oc
+      model:
+        editorMode: code
+        expr: |-
+          sum by (host) (
+            count_over_time(
+              {job="nginx"} |~ `"status":5[0-9][0-9],` [5m]
+            )
+          )
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+        queryType: instant
+        refId: A
+    - refId: C
+      queryType: expression
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 5
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 1m
+    annotations:
+      severity: medium
+      summary: Web Server Error Response en {{ $labels.host }}
+      description: Respuesta 5xx del servidor web (502/504 si el backend no responde,
+        500 si la aplicacion falla). Un salto sostenido indica que el sitio esta caido
+        o que alguien lo esta degradando. No tiene IP que banear - es un evento del
+        servicio y va directo a un humano (attack.t1499)
+    isPaused: false
+    notification_settings:
+      receiver: telegram-alertas
