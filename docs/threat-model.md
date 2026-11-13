@@ -1,7 +1,8 @@
 # Modelo de amenazas: lab doméstico (v3)
 
-Alcance: el i3 que sirve los juegos, las VMs del SOC en la PC principal y la
-red de casa donde viven. Actualizado: 2026-10-28.
+Alcance: el i3 que sirve los juegos y la web de demo, las VMs del SOC en la PC
+principal y la red de casa donde viven. Actualizado: 2026-11-13 (se suma la
+web `pyme-web`, ver ADR-002).
 
 ## 1. Qué se protege
 
@@ -20,6 +21,7 @@ red de casa donde viven. Actualizado: 2026-10-28.
 |---|---|---|
 | TCP 3724 (realmd), 8085 (mangosd) | Internet | Servicio a pedido; Suricata; reglas Sigma; bans en `prerouting` |
 | UDP 2456-2458 (Valheim) | Internet | Servicio a pedido; bans TCP+UDP |
+| TCP 8080 (`pyme-web`: nginx + app de demo) | Internet (ADR-002) | Servicio a pedido; app sin agujero real por diseño; contenedor expuesto sin salida de red (`DOCKER-USER`); reglas Sigma de la familia web; Suricata; bans en `prerouting` |
 | SSH del i3 y de las VMs | Solo LAN | Solo clave, sin root, ufw |
 | n8n (5678) | LAN | Sin publicar a internet; **abierto a toda la LAN** (riesgo aceptado, ver §5) |
 | Loki / Grafana | Solo `127.0.0.1` de su VM | Túnel SSH inverso restringido; Grafana por `ssh -L` |
@@ -49,6 +51,7 @@ red de casa donde viven. Actualizado: 2026-10-28.
 | A7 | Robo de secretos | `.env` fuera de git, escaneo de exports, credenciales cifradas en n8n, claves SSH restringidas (`from=`, `permitlisten`) | Bajo |
 | A8 | Abuso de la automatización de respuesta (banear IPs legítimas) | Aprobación humana, rechazo de IPs privadas/reservadas, bans con vencimiento | Bajo |
 | A9 | Denegación de servicio | Ninguno propio (el router del ISP no permite configurarlo) | **Alto, aceptado**: lab sin SLA |
+| A10 | Explotación del sitio web o de nginx (T1190) | La app no tiene agujero real (consultas parametrizadas, descarga acotada); nginx en rama con soporte y fijado por digest; contenedores de solo lectura y sin capabilities; la app no tiene salida de red y nginx no puede iniciar conexiones (`DOCKER-USER`, con registro del intento); reglas Sigma web + SOAR + ban | **Medio**: nginx parsea HTTP sin autenticar desde internet. Un exploit llevaría a un contenedor que no puede escribir ni salir, pero que comparte kernel con el i3 |
 
 ## 5. Riesgos aceptados (y por qué)
 
@@ -61,6 +64,9 @@ red de casa donde viven. Actualizado: 2026-10-28.
 | Grupo `docker` = root | VMs y host de un solo administrador | - |
 | Límites del plan gratuito del LLM (8K tokens/min) | Costo | Achicar tokens por triage; plan pago |
 | Sin protección DoS | Router gestionado por el ISP | Router propio |
+| `pyme-web` sin TLS (HTTP plano) | El sitio no guarda nada: la única cuenta es de demo y su contraseña no se usa en otro lado. Además Suricata ve los pedidos en claro | TLS con un proxy y certificado por DNS-01 |
+| `pyme-web` sin rate limiting | Frenaría la fuerza bruta y el descubrimiento de contenido antes de que dejen el patrón que las reglas tienen que ver; la respuesta es del SOC | Límite alto, por encima de los umbrales de las reglas |
+| Los contenedores de los juegos sí pueden iniciar conexiones a la LAN | La regla `DOCKER-USER` general está escrita pero apagada hasta probarla con VMaNGOS y Valheim andando | Activarla |
 
 ## 6. Supuestos
 
