@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block contenido %}
+<section class="hero">
+  <h1>Tu almacén de barrio, ahora online</h1>
+  <p>Hacé el pedido y pasá a buscarlo. Yerba, pan casero, bebidas y limpieza.</p>
+  <a class="boton" href="{{ url_for('productos') }}">Ver productos</a>
+</section>
+<section class="grilla">
+  <article class="tarjeta"><h3>🧉 Almacén</h3><p>Lo de siempre, al precio de siempre.</p></article>
+  <article class="tarjeta"><h3>🥐 Panadería</h3><p>Pan y facturas todos los días.</p></article>
+  <article class="tarjeta"><h3>🥤 Bebidas</h3><p>Gaseosas, agua y jugos bien fríos.</p></article>
+</section>
+{% endblock %}

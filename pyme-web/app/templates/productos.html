@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Productos — Almacén La Esquina{% endblock %}
+{% block contenido %}
+<h1>Productos</h1>
+<form class="buscador" method="get" action="{{ url_for('productos') }}">
+  <input type="text" name="q" value="{{ q }}" placeholder="Buscar producto…">
+  <button type="submit">Buscar</button>
+</form>
+{% if q %}<p class="aviso">Resultados para «{{ q }}»</p>{% endif %}
+<table class="lista">
+  <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th></tr></thead>
+  <tbody>
+  {% for p in productos %}
+    <tr><td>{{ p.nombre }}</td><td>{{ p.categoria }}</td><td>${{ p.precio }}</td></tr>
+  {% else %}
+    <tr><td colspan="3">Sin resultados.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,64 @@
+services:
+  app:
+    build: ./app
+    container_name: laesquina-app
+    environment:
+      APP_SECRET: ${APP_SECRET:?Falta APP_SECRET en .env (ver .env.example)}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Falta DEMO_PASSWORD en .env (ver .env.example)}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+    expose:
+      - "8000"
+    networks:
+      - backend
+    # Contenedor de solo lectura, sin capabilities y sin salida a ninguna red
+    # (backend es interna): si alguien lograra ejecutar código en la app, no
+    # puede escribir en disco, ni llegar a la LAN, ni a internet.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: on-failure:5
+
+  nginx:
+    # Rama estable con soporte. Fijar por digest como el resto del lab:
+    #   docker buildx imagetools inspect nginx:1.30-alpine
+    image: nginx:1.30-alpine
+    container_name: laesquina-nginx
+    depends_on:
+      - app
+    ports:
+      # Puerto del host para el sitio. Ajustar a gusto; la guía de ataque usa 8080.
+      - "8080:80"
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Bind mount: Alloy y logrotate leen ./logs/acceso.json desde el host.
+      - ./logs:/var/log/nginx
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /run
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      # Lo mínimo para el nginx oficial: puerto 80, bajar a usuario nginx y
+      # dejarle sus directorios y logs.
+      - NET_BIND_SERVICE
+      - SETUID
+      - SETGID
+      - CHOWN
+    security_opt:
+      - no-new-privileges:true
+    restart: on-failure:5
+
+networks:
+  frontend:
+  backend:
+    internal: true

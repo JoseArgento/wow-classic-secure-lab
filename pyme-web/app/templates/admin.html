@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titulo %}Panel — Almacén La Esquina{% endblock %}
+{% block contenido %}
+<h1>Panel interno</h1>
+<p>Hola, {{ usuario }}. Este es el panel de administración del almacén.</p>
+<p><a href="{{ url_for('logout') }}">Cerrar sesión</a></p>
+{% endblock %}

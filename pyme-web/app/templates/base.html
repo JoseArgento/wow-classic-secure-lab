@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Almacén La Esquina{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="top">
+    <a class="marca" href="{{ url_for('index') }}">🛒 Almacén La Esquina</a>
+    <nav>
+      <a href="{{ url_for('index') }}">Inicio</a>
+      <a href="{{ url_for('productos') }}">Productos</a>
+      <a href="{{ url_for('descargas') }}">Catálogo</a>
+      <a href="{{ url_for('login') }}">Ingresar</a>
+    </nav>
+  </header>
+  <main>
+    {% block contenido %}{% endblock %}
+  </main>
+  <footer>
+    <p>Almacén La Esquina · Sitio de demostración para laboratorio · No es un comercio real</p>
+  </footer>
+</body>
+</html>

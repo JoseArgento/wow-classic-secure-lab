@@ -7,6 +7,7 @@
 //   journal -> job="systemd-journal", unit=<unidad systemd>, host
 //   realmd  -> job="vmangos", service="realmd", host (+ filename automático)
 //   suricata -> job="suricata", event_type="alert", host
+//   web     -> job="nginx", service="web", host (+ filename automático)
 //
 // host: era "vmangos-ec2" en AWS. Acá es "i3", así el histórico restaurado
 // y lo nuevo se distinguen por origen. Las reglas no filtran por host
@@ -114,6 +115,47 @@ loki.process "suricata" {
   stage.timestamp {
     source = "ts"
     format = "2006-01-02T15:04:05.999999-0700"
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+// --- Capa web: log de acceso de nginx (pyme-web, Almacén La Esquina) ---
+// Una línea JSON por pedido. La IP, el path, el status y el user-agent NO
+// van como labels (harían explotar la cardinalidad): se extraen con `| json`
+// en la query. El archivo rota con logrotate; Alloy sigue al nuevo.
+//
+// local.file_match vuelve a buscar el archivo cada 10 s. Hace falta porque la
+// web va a pedido: con el path fijo directo en loki.source.file, si
+// acceso.json no existe cuando arranca Alloy, el source se descarta
+// ("failed to create source, skipping") y no se reintenta: silencio total
+// hasta reiniciar Alloy (verificado, nov 2026).
+
+local.file_match "web_nginx" {
+  path_targets = [{
+    __path__ = "/var/log/laesquina/acceso.json",
+    job      = "nginx",
+    service  = "web",
+    host     = "i3",
+  }]
+}
+
+loki.source.file "web_nginx" {
+  targets    = local.file_match.web_nginx.targets
+  forward_to = [loki.process.web_nginx.receiver]
+}
+
+// Hora del pedido según nginx, no la de lectura (mismo motivo que realmd:
+// si Alloy estuvo caído, al volver todo quedaría con la misma hora).
+// Formato de $time_iso8601: 2026-11-13T12:35:13+00:00
+loki.process "web_nginx" {
+  stage.json {
+    expressions = { ts = "time" }
+  }
+
+  stage.timestamp {
+    source = "ts"
+    format = "RFC3339"
   }
 
   forward_to = [loki.write.default.receiver]

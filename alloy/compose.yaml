@@ -1,4 +1,4 @@
-# Alloy en el i3: lee journal + Realmd.log + eve.json (Suricata) y empuja a Loki por el túnel.
+# Alloy en el i3: lee journal + Realmd.log + eve.json (Suricata) + acceso.json (web) y empuja a Loki por el túnel.
 # Es capa de defensa: arranca siempre con la máquina (a diferencia de
 # VMaNGOS y Valheim, que van a pedido).
 name: alloy
@@ -27,6 +27,9 @@ services:
       - ../vmangos-deploy/storage/realmd/logs:/var/log/vmangos/realmd:ro
       # eve.json de Suricata (solo se envían las alertas, ver config.alloy).
       - /var/log/suricata:/var/log/suricata:ro
+      # Log de acceso de nginx de la web de demo (pyme-web). Si la web nunca
+      # se levantó, Docker crea la carpeta vacía y Alloy espera el archivo.
+      - ../pyme-web/logs:/var/log/laesquina:ro
       # Zonas horarias del host, para interpretar la fecha local del realmd.
       - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
     restart: unless-stopped
