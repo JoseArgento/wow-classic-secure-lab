@@ -66,6 +66,8 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: medium
       summary: 'SSH Authentication Failure: actividad desde {{ $labels.ip }}'
+      description: Detecta fallos de autenticacion SSH que pueden indicar fuerza bruta
+        (attack.t1110.001)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -129,6 +131,8 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: low
       summary: 'SSH Preauth Disconnect: actividad desde {{ $labels.ip }}'
+      description: Detecta desconexiones SSH antes de completar autenticacion, posible
+        escaneo o fuerza bruta (attack.t1110.001)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -193,6 +197,15 @@ groups:
       severity: high
       summary: 'Potential OpenSSH Daemon Exploitation Attempt - Client Crash Penalty:
         actividad desde {{ $labels.ip }}'
+      description: 'Detects the OpenSSH daemon applying a "caused crash" PerSourcePenalties
+        penalty against a client address whose behaviour crashed the sshd pre-auth
+        session process. A pre-authentication crash of sshd triggered by client behaviour
+        is a strong indicator of an exploitation attempt against the SSH daemon, such
+        as memory corruption or race condition exploits (e.g. CVE-2024-6387 "regreSSHion").
+        The PerSourcePenalties feature was introduced in OpenSSH 9.8 and is enabled
+        by default. This rule matches the penalty creation, its activation, and subsequent
+        refused connections from the penalised address. Contributed to SigmaHQ (PR
+        #6127); the i3 runs OpenSSH 10.2p1, so the lab can now exercise it. (attack.t1190)'
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -379,6 +392,8 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: medium
       summary: 'VMaNGOS Wrong Password: actividad desde {{ $labels.ip }}'
+      description: Detecta intentos de login con password incorrecta contra el realmd
+        de VMaNGOS, posible fuerza bruta a cuentas del juego (attack.t1110.001)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -442,6 +457,8 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: high
       summary: 'VMaNGOS IP Lockout: actividad desde {{ $labels.ip }}'
+      description: El brute-force guard del realmd bloqueo una IP tras superar WrongPass.MaxAttempts
+        - ataque sostenido confirmado por la propia defensa (attack.t1110.001)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -505,6 +522,9 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: low
       summary: 'VMaNGOS Protocol Scan: actividad desde {{ $labels.ip }}'
+      description: Bytes que no corresponden al protocolo de auth de WoW llegando
+        al realmd - firma de escaneo o fingerprinting, un cliente legitimo no puede
+        generar esta linea (attack.t1046)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -568,6 +588,9 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: low
       summary: 'Web Scanner User Agent: actividad desde {{ $labels.ip }}'
+      description: Pedido HTTP con el user-agent de una herramienta de escaneo o ataque
+        web (sqlmap, nikto, gobuster, hydra, etc.). Quien no cambia el user-agent
+        por defecto se delata solo (attack.t1595.002)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -631,6 +654,9 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: low
       summary: 'Web Content Discovery: actividad desde {{ $labels.ip }}'
+      description: Respuesta 404 del servidor web. Una sola no dice nada; una rafaga
+        desde la misma IP es descubrimiento de contenido por diccionario (gobuster,
+        ffuf, dirb). El umbral vive en deploy/rules-config.yaml (attack.t1595.003)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -694,6 +720,10 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: medium
       summary: 'Web Sensitive File Probe: actividad desde {{ $labels.ip }}'
+      description: Pedido a un archivo o ruta que no deberia estar publicado nunca
+        - secretos (.env, .aws), repositorios (.git), backups y volcados (.bak, .sql,
+        .zip) o paneles tipicos de otros productos (wp-login, phpinfo). Es lo primero
+        que prueban los bots contra cualquier sitio expuesto (attack.t1595.003)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -757,6 +787,9 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: medium
       summary: 'Web Login Failure: actividad desde {{ $labels.ip }}'
+      description: Intento de login fallido en el sitio web (POST a /login respondido
+        con 401). Varios seguidos desde la misma IP indican fuerza bruta o password
+        spraying. El umbral vive en deploy/rules-config.yaml (attack.t1110.001)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -820,6 +853,10 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: high
       summary: 'Web SQL Injection Attempt: actividad desde {{ $labels.ip }}'
+      description: Patron de inyeccion SQL en la URI de un pedido - UNION SELECT,
+        tautologias (' OR 1=1), comilla seguida de comentario, ORDER BY numerico,
+        tablas de catalogo o funciones de demora. Detecta el intento, no el exito
+        - la aplicacion usa consultas parametrizadas (attack.t1190)
     isPaused: false
     notification_settings:
       receiver: n8n
@@ -883,6 +920,10 @@ groups:
       ip: '{{ $labels.ip }}'
       severity: high
       summary: 'Web Path Traversal Attempt: actividad desde {{ $labels.ip }}'
+      description: Intento de salir del directorio publicado (../ en cualquiera de
+        sus codificaciones) o de leer archivos del sistema (/etc/passwd, win.ini)
+        a traves del servidor web. Detecta el intento, no el exito - la descarga esta
+        acotada a un directorio (attack.t1190)
     isPaused: false
     notification_settings:
       receiver: n8n
