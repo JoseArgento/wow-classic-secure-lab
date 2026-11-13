@@ -99,7 +99,7 @@ Contrato de labels sugerido (a replicar en Alloy, en línea con el del journal):
 `job=nginx`, `service=web`, `host=<nombre del i3>`. La IP, el método, el path y
 el status **no** van como labels: se extraen del JSON en la query LogQL.
 
-Campos de cada línea: `time`, `remote_addr`, `host`, `method`, `uri`,
+Campos de cada línea: `time`, `remote_addr`, `http_host`, `method`, `uri`,
 `request`, `status`, `body_bytes`, `request_time`, `upstream_status`,
 `user_agent`, `referer`.
 
