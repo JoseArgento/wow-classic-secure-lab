@@ -23,9 +23,10 @@ services:
     restart: on-failure:5
 
   nginx:
-    # Rama estable con soporte. Fijar por digest como el resto del lab:
-    #   docker buildx imagetools inspect nginx:1.30-alpine
-    image: nginx:1.30-alpine
+    # Rama estable con soporte (1.30.x), fijada por digest como el resto del
+    # lab (nov 2026). Para actualizar: docker pull nginx:1.30-alpine y copiar
+    # el digest nuevo de `docker image inspect nginx:1.30-alpine --format '{{index .RepoDigests 0}}'`.
+    image: nginx:1.30-alpine@sha256:583b7f2fce1cdb8da5ad5c39ebd3c33b98b87d493190e548bdee1fa8c619c311
     container_name: laesquina-nginx
     depends_on:
       - app
@@ -60,5 +61,10 @@ services:
 
 networks:
   frontend:
+    # Nombre fijo de la interfaz: las reglas DOCKER-USER del i3
+    # (i3/docker-user/) matchean por este nombre para que el contenedor
+    # expuesto no pueda iniciar conexiones. Si se cambia acá, cambiarlo allá.
+    driver_opts:
+      com.docker.network.bridge.name: br-laesquina
   backend:
     internal: true

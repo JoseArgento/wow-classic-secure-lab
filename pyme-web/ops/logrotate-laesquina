@@ -1,11 +1,11 @@
 # Rotación del log de acceso de nginx (máquina: i3).
 # Instalar:  sudo install -m 644 -o root -g root ops/logrotate-laesquina /etc/logrotate.d/laesquina
-# Ajustar la ruta a donde esté clonado el repo.
+# La ruta es la del i3 (~/pyme-web del usuario doblepupi).
 # Probar sin tocar nada:  sudo logrotate -d /etc/logrotate.d/laesquina
 #
 # Un sitio expuesto recibe bots todo el día y nadie más rota este archivo:
 # sin esto crece hasta llenar el disco.
-/opt/pyme-web/logs/acceso.json {
+/home/doblepupi/pyme-web/logs/acceso.json {
     daily
     maxsize 50M
     rotate 14

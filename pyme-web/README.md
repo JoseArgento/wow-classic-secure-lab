@@ -130,7 +130,8 @@ alertar.
 | Clave de sesión y contraseña fuera del repo | `.env` | Con la clave conocida se puede firmar una cookie y entrar a `/admin` sin pasar por `/login` |
 | App sin salida de red | red `backend` interna | Si alguien ejecutara código en la app, no llega a la LAN ni a internet |
 | Solo lectura, sin capabilities, `no-new-privileges` | compose | Menos margen para persistir o escalar |
-| nginx en rama con soporte | `nginx:1.30-alpine` | La 1.27 ya no recibe parches |
+| nginx en rama con soporte, fijado por digest | `nginx:1.30-alpine@sha256:…` | La 1.27 ya no recibe parches |
+| El contenedor expuesto no inicia conexiones | `DOCKER-USER` en el i3 (`i3/docker-user/`) | Si alguien ejecutara código en nginx, no llega a la LAN ni a internet, y el intento queda en el journal |
 | Cabeceras (CSP, nosniff, frame, referrer) y cookie `SameSite=Lax` | nginx / Flask | Higiene básica de un sitio público |
 | Cuerpo máximo 16k y timeouts cortos | `nginx.conf` | Conexiones lentas y cuerpos enormes |
 | Rotación del log | `ops/logrotate-laesquina` | Que los bots no llenen el disco |
@@ -142,13 +143,24 @@ Gaps a propósito, para documentar en el informe:
   respuesta es del SOC (alerta, triage, ban), no del servidor web.
 - **Sin HTTPS** mientras se sirva por HTTP plano: la contraseña de demo viaja
   en claro. No protege nada, pero no hay que reusarla en ningún otro lado.
-- **El contenedor de nginx sí ve la LAN.** Aislarlo es trabajo del host
-  (cadena `DOCKER-USER`), no de este compose.
+- **El aislamiento de nginx no está en este compose.** Lo hace el host con la
+  cadena `DOCKER-USER`: sin esas reglas instaladas, el contenedor de nginx ve
+  la LAN.
 
 ## Exposición a internet
 
-Por defecto el sitio es para la LAN del lab. Publicarlo es una decisión aparte
-(port forwarding, túnel o VPS) que cambia el modelo de amenazas del lab: antes
-de hacerlo, dejarla escrita en el threat model y, si queda detrás de un túnel o
-proxy, configurar la IP real en `nginx/conf.d/default.conf` (está comentado
-ahí) o todas las detecciones por IP van a ver una sola dirección.
+Se publica por port forwarding del router (TCP 8080) con el DDNS que ya usa el
+lab. La decisión, las alternativas y las condiciones están en
+[`docs/adr/ADR-002-exponer-pyme-web.md`](../docs/adr/ADR-002-exponer-pyme-web.md).
+
+Antes de abrir el puerto, en este orden:
+
+1. Reglas `DOCKER-USER` instaladas y probadas (`i3/README.md`).
+2. i3 actualizado y reiniciado, con las defensas arriba después del reinicio.
+3. Rotación del log instalada (`ops/logrotate-laesquina`).
+4. Circuito alerta -> triage -> ban probado con una IP de prueba.
+
+Con port forwarding directo `remote_addr` es la IP real del visitante y no
+hace falta tocar nada. Si algún día queda detrás de un túnel o proxy, hay que
+configurar la IP real en `nginx/conf.d/default.conf` (está comentado ahí) o
+todas las detecciones por IP van a ver una sola dirección.

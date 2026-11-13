@@ -16,6 +16,8 @@ i3/
 ├── sysctl/99-lab-hardening.conf     -> /etc/sysctl.d/          (endurecimiento del kernel)
 ├── suricata/lab.conf                -> /etc/systemd/system/suricata.service.d/   (interfaz de captura)
 ├── suricata/disable.conf            -> /etc/suricata/          (falsos positivos conocidos, con motivo)
+├── docker-user/docker-user-lab.sh       -> /usr/local/sbin/        (root:root 0755)
+├── docker-user/docker-user-lab.service  -> /etc/systemd/system/    (se aplica cada vez que arranca Docker)
 └── soar/
     ├── soar-ban.sh                -> /usr/local/bin/        (root:root 0755)
     ├── sudoers-soar               -> /etc/sudoers.d/soar    (root:root 0440)
@@ -52,6 +54,20 @@ i3/
   local o repetir el `sed`.
 - **Túnel de logs**: el usuario `lokitunnel` no tiene shell y su clave solo
   puede abrir `127.0.0.1:3100` (`permitlisten`).
+- **Salida del contenedor web (`DOCKER-USER`)**: el nginx de `pyme-web` es lo
+  único que atiende HTTP de internet (ADR-002). Contesta pedidos, pero no puede
+  **iniciar** ninguna conexión, ni a la LAN ni a internet: la cadena
+  `DOCKER-USER` descarta lo que nace de su interfaz (`br-laesquina`) y lo deja
+  en el journal con el prefijo `LAESQUINA-EGRESS`. ufw no sirve para esto: los
+  contenedores salen por `forward` y ufw protege `input`. Las reglas no
+  sobreviven a un reinicio, así que las aplica un servicio atado a Docker:
+  ```bash
+  sudo install -m 755 -o root -g root docker-user/docker-user-lab.sh /usr/local/sbin/
+  sudo install -m 644 -o root -g root docker-user/docker-user-lab.service /etc/systemd/system/
+  sudo systemctl daemon-reload && sudo systemctl enable --now docker-user-lab.service
+  ```
+  No cubre contenedor -> i3: eso entra por `input` y lo corta ufw.
+  Pendiente: la misma idea para VMaNGOS y Valheim (regla comentada en el script).
 
 ## Verificación
 
@@ -64,4 +80,18 @@ sudo -l -U soar                                                   # solo soar-ba
 sudo sysctl --system 2>&1 | grep -E "^sysctl:"                       # sin salida
 sysctl net.ipv4.ip_forward kernel.kptr_restrict net.ipv4.conf.all.accept_redirects   # 1, 2, 0
 systemctl is-active suricata && sudo grep -E "eno1|rules successfully loaded" /var/log/suricata/suricata.log | tail -3
+sudo iptables -S DOCKER-USER                                      # LOG y DROP sobre br-laesquina, en ese orden
+```
+
+Prueba del aislamiento del contenedor web (con `pyme-web` levantada):
+
+```bash
+# 1. No puede iniciar conexiones: a la LAN (router), a internet, ni al SSH del i3
+docker exec laesquina-nginx wget -T 3 -q -O /dev/null http://192.168.1.1/  && echo ALCANZA || echo bloqueado
+docker exec laesquina-nginx wget -T 3 -q -O /dev/null http://1.1.1.1/      && echo ALCANZA || echo bloqueado
+docker exec laesquina-nginx nc -w 3 192.168.1.66 22 </dev/null             && echo ALCANZA || echo bloqueado
+# 2. Los intentos quedaron en el journal (los dos primeros; el tercero lo corta ufw)
+sudo journalctl -k --since "-2 min" | grep LAESQUINA-EGRESS
+# 3. El sitio sigue respondiendo (probar también desde otra máquina)
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/productos   # 200
 ```

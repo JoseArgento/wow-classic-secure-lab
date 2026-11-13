@@ -1,0 +1,18 @@
+# /etc/systemd/system/docker-user-lab.service - root:root 0644
+# Aplica las reglas DOCKER-USER del lab cada vez que arranca Docker.
+# Las reglas de iptables no sobreviven a un reinicio, y la cadena la crea
+# Docker: por eso este servicio corre después de docker.service y se vuelve a
+# ejecutar si Docker se reinicia (PartOf).
+[Unit]
+Description=Reglas DOCKER-USER del lab (aislamiento de pyme-web)
+After=docker.service
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/docker-user-lab.sh
+
+[Install]
+WantedBy=docker.service
