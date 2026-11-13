@@ -356,7 +356,8 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "orange"
-          }
+          },
+          "displayName": "${__data.fields.remote_addr}"
         },
         "overrides": []
       },
@@ -426,7 +427,8 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "orange"
-          }
+          },
+          "displayName": "${__data.fields.remote_addr}"
         },
         "overrides": []
       },
@@ -496,7 +498,8 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "orange"
-          }
+          },
+          "displayName": "${__data.fields.user_agent}"
         },
         "overrides": []
       },
@@ -566,7 +569,8 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "orange"
-          }
+          },
+          "displayName": "${__data.fields.uri}"
         },
         "overrides": []
       },
