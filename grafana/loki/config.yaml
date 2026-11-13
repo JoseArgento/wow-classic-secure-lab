@@ -45,6 +45,11 @@ compactor:
 
 limits_config:
   retention_period: 8760h
+  # Series por consulta (por defecto 500). Un "top IPs" agrupa por IP antes
+  # de quedarse con las 10 primeras: con más de 500 IPs distintas en el rango
+  # la consulta falla ("maximum of series (500) reached") y el panel queda
+  # vacío justo cuando hay más tráfico. 5000 alcanza de sobra para el lab.
+  max_query_series: 5000
 
 ruler:
   alertmanager_url: http://localhost:9093

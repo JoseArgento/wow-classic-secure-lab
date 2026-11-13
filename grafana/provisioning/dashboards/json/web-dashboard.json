@@ -1,0 +1,688 @@
+{
+  "uid": "web-dashboard-bt",
+  "title": "Web Dashboard",
+  "tags": [
+    "blue-team",
+    "web",
+    "nginx"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Pedidos",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum(count_over_time({job=\"nginx\", service=\"web\"} [$__range]))",
+          "queryType": "instant"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Login fallidos (401)",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum(count_over_time({job=\"nginx\", service=\"web\"} | json | status = 401 [$__range]))",
+          "queryType": "instant"
+        }
+      ],
+      "description": "POST a /login con credenciales inválidas. Señal de web_login_bruteforce.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Rechazados por nginx (400)",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum(count_over_time({job=\"nginx\", service=\"web\"} | json | status = 400 [$__range]))",
+          "queryType": "instant"
+        }
+      ],
+      "description": "Pedidos mal formados o traversal en el path. El campo uri queda vacío: mirar request.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Errores del servidor (5xx)",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum(count_over_time({job=\"nginx\", service=\"web\"} | json | status >= 500 [$__range]))",
+          "queryType": "instant"
+        }
+      ],
+      "description": "502/504: el backend no responde. Señal de web_5xx_spike.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Pedidos por código de respuesta",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 14,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum by (status) (count_over_time({job=\"nginx\", service=\"web\"} | json [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Login fallidos por IP",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 5,
+        "w": 10,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "sum by (remote_addr) (count_over_time({job=\"nginx\", service=\"web\"} | json | status = 401 [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{remote_addr}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "min": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "bargauge",
+      "title": "Top IPs por pedidos",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 8,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "topk(10, sum by (remote_addr) (count_over_time({job=\"nginx\", service=\"web\"} | json [$__range])))",
+          "queryType": "instant",
+          "legendFormat": "{{remote_addr}}"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true,
+          "limit": 15
+        },
+        "namePlacement": "left",
+        "valueMode": "color",
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 22,
+        "minVizWidth": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Value #A",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "bargauge",
+      "title": "Top IPs con 404",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 13,
+        "w": 8,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "topk(10, sum by (remote_addr) (count_over_time({job=\"nginx\", service=\"web\"} | json | status = 404 [$__range])))",
+          "queryType": "instant",
+          "legendFormat": "{{remote_addr}}"
+        }
+      ],
+      "description": "Muchas 404 desde una IP = descubrimiento de contenido (gobuster, ffuf). Señal de web_content_discovery.",
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true,
+          "limit": 15
+        },
+        "namePlacement": "left",
+        "valueMode": "color",
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 22,
+        "minVizWidth": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Value #A",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "bargauge",
+      "title": "Top user-agents",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 13,
+        "w": 8,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "topk(10, sum by (user_agent) (count_over_time({job=\"nginx\", service=\"web\"} | json | label_format user_agent=`{{ if .user_agent }}{{ .user_agent }}{{ else }}(vacío){{ end }}` [$__range])))",
+          "queryType": "instant",
+          "legendFormat": "{{user_agent}}"
+        }
+      ],
+      "description": "Las herramientas suelen delatarse acá (sqlmap, nikto, gobuster). Señal de web_scanner_user_agent.",
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true,
+          "limit": 15
+        },
+        "namePlacement": "left",
+        "valueMode": "color",
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 22,
+        "minVizWidth": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Value #A",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "bargauge",
+      "title": "Sondas a archivos sensibles",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 10,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "topk(15, sum by (uri) (count_over_time({job=\"nginx\", service=\"web\"} | json | uri =~ `(?i).*(\\.env|\\.git|\\.svn|\\.htpasswd|\\.aws|wp-login|wp-config|phpinfo).*|.*\\.(bak|old|sql|zip|tar|gz)(\\?.*)?` [$__range])))",
+          "queryType": "instant",
+          "legendFormat": "{{uri}}"
+        }
+      ],
+      "description": "Pedidos a .env, .git, backups y similares. Señal de web_sensitive_file_probe. No hay un 'top URIs' general a propósito: un gobuster genera miles de URIs distintas y la consulta superaría el límite de series de Loki.",
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true,
+          "limit": 15
+        },
+        "namePlacement": "left",
+        "valueMode": "color",
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 22,
+        "minVizWidth": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Value #A",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "logs",
+      "title": "Posible SQLi o traversal (uri o request)",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 10,
+        "y": 22,
+        "w": 14,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "{job=\"nginx\", service=\"web\"} |~ `(?i)(union(\\+|%20| )+select|%27|(\\.|%2e)(\\.|%2e)(/|%2f)|etc/passwd)` | json | line_format \"{{.remote_addr}}  {{.status}}  {{.request}}  ·  {{.user_agent}}\"",
+          "queryType": "range"
+        }
+      ],
+      "description": "Filtro amplio sobre la línea cruda, para ver cómo llegan los payloads codificados. No es una regla: sirve para escribirlas.",
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 12,
+      "type": "logs",
+      "title": "Rechazados por nginx (400)",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "{job=\"nginx\", service=\"web\"} | json | status = 400 | line_format \"{{.remote_addr}}  {{.status}}  {{.request}}  ·  {{.user_agent}}\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 13,
+      "type": "logs",
+      "title": "Últimos pedidos",
+      "datasource": {
+        "type": "loki",
+        "uid": "dfpmdh15h9d6oc"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "dfpmdh15h9d6oc"
+          },
+          "expr": "{job=\"nginx\", service=\"web\"} | json | line_format \"{{.remote_addr}}  {{.status}}  {{.request}}  ·  {{.user_agent}}\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      }
+    }
+  ]
+}
